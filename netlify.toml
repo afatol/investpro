@@ -1,8 +1,6 @@
 [build]
-  command   = "npm run build"
-  # Você pode customizar a pasta de saída estática, mas o plugin
-  # cuidará de gerar SSR e funções automaticamente.
-  publish   = ".netlify/output/public"
+  command = "npm run build"
+  publish = ".next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
