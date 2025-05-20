@@ -1,0 +1,173 @@
+/* styles/layout.css */
+
+/* Header / Nav */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 2rem;
+}
+.header nav a {
+  margin-left: 1rem;
+  text-decoration: none;
+  color: #0070f3;
+  font-weight: 500;
+  transition: color .2s;
+}
+.header nav a:hover {
+  color: #005bb5;
+}
+
+/* Dashboard e páginas de texto */
+.container h1,
+.container h2,
+.container p,
+.container table th,
+.container table td {
+  line-height: 1.6;  /* Espaçamento entre linhas */
+}
+
+/* Tabelas responsivas */
+.table-responsive {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+th, td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+/* Página de Planos */
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.plan-card {
+  background: #fff;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
+  line-height: 1.6;  /* Espaçamento no texto do card */
+}
+.plan-card h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+}
+.plan-card p {
+  margin-bottom: 0.75rem;
+  color: #555;
+}
+
+/* Destaque do plano selecionado */
+.plan-card.selected {
+  border-color: #0070f3;
+  box-shadow: 0 4px 12px rgba(0, 112, 243, 0.2);
+  background-color: #f0f8ff;
+}
+.plan-card.selected h2,
+.plan-card.selected p {
+  color: #0070f3;
+}
+/* ================================
+   RESPONSIVIDADE (Mobile First)
+   ================================ */
+
+/* Garante que o header e nav quebrem se necessário */
+.header {
+  flex-wrap: wrap;
+}
+.header .logo-container {
+  flex: 1 1 auto;
+}
+.header nav {
+  flex: 2 1 auto;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;    /* permite quebrar em múltiplas linhas */
+}
+
+/* Links do nav se ajustam */
+.header nav a {
+  margin: 0.5rem;
+}
+
+/* Grid de planos entra em 1 coluna em telas pequenas */
+@media (max-width: 600px) {
+  .plans-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Formulários e tabelas ocupam 100% */
+@media (max-width: 600px) {
+  .container form,
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+  }
+}
+
+/* Ajustes gerais em telas bem pequenas */
+@media (max-width: 400px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .header nav {
+    justify-content: flex-start;
+  }
+  .btn {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+}
+/* styles/layout.css */
+
+/* 1. Espaçamento entre inputs e botões nos formulários */
+.container form input,
+.container form select,
+.container form textarea {
+  display: block;
+  width: 100%;
+  margin-bottom: 1rem;   /* espaço após cada campo */
+}
+
+.container form button {
+  margin-top: 1rem;      /* espaço antes do botão */
+  display: block;
+  width: 100%;
+}
+
+/* 2. Ajuste específico na grid de Planos */
+.plans-grid + form .btn {
+  margin-top: 1.5rem;    /* afasta o botão Salvar do input Valor a investir */
+}
+
+/* 3. Faz as caixas de login/cadastro/esqueci-senha ficarem empilhadas */
+.container form .form-group {
+  margin-bottom: 1rem;
+}
+
+.container form .form-group input,
+.container form .form-group button {
+  width: 100%;
+  display: block;
+}
+
+/* 4. Mantém responsividade (já discutido) */
+/* … (suas regras de @media queridas continuam aqui) … */
+
