@@ -22,6 +22,7 @@ export default function Nav() {
         <Link href="/planos">Planos</Link>
         <Link href="/deposit">Depositar</Link>
         <Link href="/withdraw">Sacar</Link>
+        <Link href="/rendimentos">Rendimentos</Link> {/* ← Adicionado aqui */}
         <Link href="/rede">Minha Rede</Link>
         <Link href="/sobre">Sobre</Link>
         <Link href="/manual">Manual de Uso</Link>
