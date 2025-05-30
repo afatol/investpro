@@ -1,0 +1,68 @@
+// pages/register.js
+import { useState } from 'react'
+import Link from 'next/link'
+import supabase from '../lib/supabase'
+
+export default function RegisterPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [referralCode, setReferralCode] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    
+    // Registrar usuário no Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          referral_code: referralCode || null
+        }
+      }
+    })
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    // Opcional: Salvar o código de indicação no perfil do usuário
+    const userId = data.user.id
+    if (referralCode) {
+      await supabase.from('profiles').update({ referral_code: referralCode }).eq('id', userId)
+    }
+
+    alert("Cadastro realizado com sucesso!")
+  }
+
+  return (
+    <div className="auth-container">
+      <h2>Cadastre-se</h2>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Senha"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <input
+          type="text"
+          placeholder="Código de indicação (opcional)"
+          value={referralCode}
+          onChange={(e) => setReferralCode(e.target.value)}
+        />
+        <button type="submit">Criar conta</button>
+        <p>Já tem conta? <Link href="/login">Faça login</Link></p>
+      </form>
+    </div>
+  )
+}

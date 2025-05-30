@@ -1,0 +1,38 @@
+// pages/dashboard.js
+import { useEffect, useState } from 'react'
+import supabase from '../lib/supabase'
+
+export default function DashboardPage() {
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      setUser({ ...user, ...data })
+    }
+    fetchUser()
+  }, [])
+
+  if (!user) return <p>Carregando...</p>
+
+  const referralLink = `https://seusite.com/register?ref= ${user.referral_code}`
+
+  return (
+    <div className="dashboard">
+      <h1>Olá, {user.email}</h1>
+      
+      <section>
+        <h2>Seu Código de Indicação</h2>
+        <p><strong>Código:</strong> {user.referral_code}</p>
+        <p><strong>Link de indicação:</strong> <a href={referralLink}>{referralLink}</a></p>
+        <button onClick={() => navigator.clipboard.writeText(referralLink)}>Copiar link</button>
+      </section>
+
+      <section>
+        <h2>Indicações</h2>
+        <p>Você indicou <strong>{user.referrals_count || 0}</strong> usuários.</p>
+      </section>
+    </div>
+  )
+}

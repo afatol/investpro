@@ -1,67 +1,51 @@
-// pages/dashboard.js
+﻿// pages/dashboard.js
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import Nav from '../components/Nav'
+import Layout from '../components/Layout'
 
-export default function Dashboard() {
-  const [transactions, setTransactions] = useState([])
-  const [balance, setBalance]           = useState(0)
-  const [user, setUser]                 = useState(null)
+export default function DashboardPage() {
+  const [user, setUser] = useState(null)
 
   useEffect(() => {
-    (async () => {
-      const { data:{ session } } = await supabase.auth.getSession()
-      if (!session) return window.location.href = '/login'
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-      setUser(session.user)
-      const { data: txs } = await supabase
-        .from('transactions')
+      const { data } = await supabase
+        .from('profiles')
         .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false })
-      setTransactions(txs || [])
+        .eq('id', user.id)
+        .single()
 
-      const bal = txs
-        .filter(t => t.status==='approved')
-        .reduce((sum, t) => {
-          if (t.type==='deposit' || t.type==='rendimento') return sum + parseFloat(t.amount)
-          if (t.type==='withdraw') return sum - parseFloat(t.amount)
-          return sum
-        }, 0)
-      setBalance(bal)
-    })()
+      setUser({ ...user, ...data })
+    }
+
+    fetchUser()
   }, [])
 
-  if (!user) return <p className="container">Carregando…</p>
+  if (!user) return <p>Carregando...</p>
+
+  const referralLink = `/profile#${user.referral_code || 'carregando'}`
 
   return (
-    <div className="container">
-      <Nav />
-      <h1>Olá, {user.email}</h1>
-      <h2>Saldo Atual: ${balance.toFixed(2)}</h2>
+    <Layout>
+      <div className="dashboard">
+        <h1>Olá, {user.email}</h1>
 
-      <div className="table-responsive">
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Tipo</th>
-              <th>Valor</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map(tx => (
-              <tr key={tx.id}>
-                <td>{new Date(tx.created_at).toLocaleString()}</td>
-                <td>{tx.type}</td>
-                <td>${parseFloat(tx.amount||0).toFixed(2)}</td>
-                <td>{tx.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <section className="referrals">
+          <h2>Indicações</h2>
+          <p>Você indicou <strong>{user.referrals_count || 0}</strong> usuários.</p>
+          <button onClick={() => navigator.clipboard.writeText(user.referral_code)}>
+            Copiar meu código de indicação
+          </button>
+        </section>
+
+        <section className="earnings">
+          <h2>Rendimentos</h2>
+          <p>Acesse sua nova página de rendimentos pra ver gráficos e histórico de transações</p>
+          <Link href="/rendimentos">Ir para Rendimentos</Link>
+        </section>
       </div>
-    </div>
+    </Layout>
   )
 }

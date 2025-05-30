@@ -14,6 +14,7 @@ body {
   background-color: #f5f5f5;
   color: #333;
   line-height: 1.6;    /* Aumenta espaçamento entre linhas em todo o corpo */
+  padding: 1rem;
 }
 
 /* Botões padrão */
@@ -42,7 +43,124 @@ body {
 
 /* Container centralizado */
 .container {
-  max-width: 800px;
+  max-width: 900px;
   margin: 2rem auto;
   padding: 0 1rem;
+}
+
+/* Layout da dashboard */
+.dashboard,
+.profile,
+.rendimentos {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+/* Seções internas */
+section {
+  margin-top: 1.5rem;
+}
+
+h2 {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  color: #222;
+}
+
+/* Filtros de mês e ano */
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 1rem;
+}
+
+.filtro-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+}
+
+.filtro-group label {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.filtro-group select {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+
+/* Gráfico */
+.grafico {
+  margin-top: 1.5rem;
+  background: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Tabelas */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+table th, table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+table th {
+  background-color: #f5f5f5;
+}
+
+/* Status das transações */
+.status.completed {
+  color: green;
+  font-weight: bold;
+}
+
+.status.pending {
+  color: orange;
+}
+
+.status.failed {
+  color: red;
+}
+
+/* Navegação */
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+nav a {
+  text-decoration: none;
+  color: #0070f3;
+  font-weight: 500;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+/* Rodapé */
+footer {
+  margin-top: 2rem;
+  text-align: center;
+  color: #888;
+  font-size: 0.9rem;
 }

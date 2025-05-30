@@ -1,26 +1,57 @@
-// pages/profile.js
+﻿// pages/profile.js
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import Nav from '../components/Nav'
+import Layout from '../components/Layout'
 
-export default function Profile() {
+export default function ProfilePage() {
   const [user, setUser] = useState(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data:{ user } }) => {
-      if (!user) return window.location.href = '/login'
-      setUser(user)
-    })
+    const fetchUser = async () => {
+      // Buscar usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Buscar dados adicionais no perfil
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      setUser({ ...user, ...data })
+    }
+
+    fetchUser()
   }, [])
 
-  if (!user) return <p className="container">Carregando…</p>
+  if (!user) return <p>Carregando...</p>
+
+  const referralCode = user.referral_code || 'Carregando...'
+  const referralLink = `https://investpro2025.netlify.app/register?ref= ${referralCode}`
 
   return (
-    <div className="container">
-      <Nav />
-      <h1>Perfil</h1>
-      <p><strong>Email:</strong> {user.email}</p>
-      <p><strong>Criado em:</strong> {new Date(user.created_at).toLocaleDateString()}</p>
-    </div>
+    <Layout>
+      <div className="profile">
+        <h1>Perfil</h1>
+
+        <section className="referral-section">
+          <h2>Seu Código de Indicação</h2>
+          <p><strong>Código:</strong> {referralCode}</p>
+          <p>
+            <strong>Link de indicação:</strong>{' '}
+            <a href={referralLink} target="_blank" rel="noopener noreferrer">
+              {referralLink}
+            </a>
+          </p>
+          <button
+            type="button"
+            onClick={() => navigator.clipboard.writeText(referralLink)}
+          >
+            Copiar link
+          </button>
+        </section>
+      </div>
+    </Layout>
   )
 }

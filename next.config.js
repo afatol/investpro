@@ -1,18 +1,10 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+﻿// next.config.js
+const path = require('path')
+
+module.exports = {
   reactStrictMode: true,
-  // this tells Next to do a static export into “out/”
-  output: 'export',
-  // if you’re using next/image for external URLs, allow them here:
-  images: {
-    unoptimized: true,
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.supabase.co',
-      },
-    ],
+  webpack(config) {
+    config.resolve.alias['@components'] = path.join(__dirname, 'components')
+    return config
   },
 }
-
-module.exports = nextConfig
