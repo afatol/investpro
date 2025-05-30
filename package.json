@@ -12,10 +12,9 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "@supabase/supabase-js": "^2.0.0",
-    "chart.js": "^3.9.1",
-    "react-chartjs-2": "^0.17.0"
+    "recharts": "^2.8.0"
   },
   "devDependencies": {
-    "@netlify/plugin-nextjs": "^5.11.1"
+    "@netlify/plugin-nextjs": "^5.11.2"
   }
 }
