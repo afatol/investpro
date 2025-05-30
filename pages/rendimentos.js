@@ -1,179 +1,110 @@
-// pages/rendimentos.js
-import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
-import Layout from '../components/Layout'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  CartesianGrid,
-  ResponsiveContainer
-} from 'recharts'
-
-export default function RendimentosPage() {
-  const [transactions, setTransactions] = useState([])
-  const [filteredData, setFilteredData] = useState([])
-  const [month, setMonth] = useState('')
-  const [year, setYear] = useState('')
-  const [chartData, setChartData] = useState([])
-
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .in('type', ['deposit', 'withdraw'])
-        .order('created_at', { ascending: true })
-
-      if (error) {
-        console.error('Erro ao carregar transações:', error.message)
-        return
-      }
-
-      setTransactions(data)
-      setFilteredData(data)
-      generateChartData(data)
-    }
-
-    fetchTransactions()
-  }, [])
-
-  const applyFilter = () => {
-    let filtered = [...transactions]
-
-    if (month) {
-      filtered = filtered.filter(t => {
-        const date = new Date(t.created_at)
-        return date.getMonth() + 1 === parseInt(month)
-      })
-    }
-
-    if (year) {
-      filtered = filtered.filter(t => {
-        const date = new Date(t.created_at)
-        return date.getFullYear() === parseInt(year)
-      })
-    }
-
-    setFilteredData(filtered)
-    generateChartData(filtered)
+<style jsx>{`
+  .rendimentos {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 1rem;
   }
 
-  const generateChartData = (data) => {
-    if (!data.length) {
-      setChartData([])
-      return
-    }
-
-    const amounts = data.map(t => t.type === 'deposit' ? t.amount : -t.amount)
-    let balance = 0
-
-    const dataset = data.map((t, i) => {
-      balance += amounts[i]
-      return {
-        date: new Date(t.created_at).toLocaleDateString('pt-BR'),
-        rendimento: balance
-      }
-    })
-
-    setChartData(dataset)
+  h1, h2 {
+    text-align: center;
+    margin-bottom: 1rem;
   }
 
-  const months = [
-    { value: '', label: 'Todos os meses' },
-    { value: '1', label: 'Janeiro' },
-    { value: '2', label: 'Fevereiro' },
-    { value: '3', label: 'Março' },
-    { value: '4', label: 'Abril' },
-    { value: '5', label: 'Maio' },
-    { value: '6', label: 'Junho' },
-    { value: '7', label: 'Julho' },
-    { value: '8', label: 'Agosto' },
-    { value: '9', label: 'Setembro' },
-    { value: '10', label: 'Outubro' },
-    { value: '11', label: 'Novembro' },
-    { value: '12', label: 'Dezembro' }
-  ]
+  .filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+  }
 
-  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
+  .filtro-group {
+    display: flex;
+    flex-direction: column;
+  }
 
-  return (
-    <Layout>
-      <div className="rendimentos">
-        <h1>Meus Rendimentos</h1>
+  select {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1rem;
+    min-width: 150px;
+  }
 
-        <section className="filtros">
-          <div className="filtro-group">
-            <label htmlFor="mes">Mês:</label>
-            <select id="mes" value={month} onChange={(e) => setMonth(e.target.value)}>
-              {months.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-          </div>
+  button {
+    padding: 0.6rem 1.2rem;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: auto;
+  }
 
-          <div className="filtro-group">
-            <label htmlFor="ano">Ano:</label>
-            <select id="ano" value={year} onChange={(e) => setYear(e.target.value)}>
-              <option value="">Todos os anos</option>
-              {years.map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
+  button:hover {
+    background-color: #45a049;
+  }
 
-          <button onClick={applyFilter}>Aplicar Filtro</button>
-        </section>
+  .grafico {
+    margin-bottom: 3rem;
+  }
 
-        <section className="grafico">
-          <h2>Evolução Financeira</h2>
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="rendimento" stroke="#4CAF50" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <p>Nenhuma transação encontrada.</p>
-          )}
-        </section>
+  .transacoes {
+    overflow-x: auto;
+  }
 
-        <section className="transacoes">
-          <h2>Histórico de Transações</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Tipo</th>
-                <th>Valor</th>
-                <th>Data</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredData.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.type === 'deposit' ? 'Depósito' : 'Saque'}</td>
-                  <td>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount)}</td>
-                  <td>{new Date(t.created_at).toLocaleDateString()}</td>
-                  <td><span className={`status ${t.status}`}>{t.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      </div>
-    </Layout>
-  )
-}
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+
+  th, td {
+    padding: 0.8rem;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+  }
+
+  th {
+    background-color: #f5f5f5;
+  }
+
+  .status {
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-weight: bold;
+    text-transform: capitalize;
+  }
+
+  .status.approved {
+    background-color: #d4edda;
+    color: #155724;
+  }
+
+  .status.pending {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+
+  .status.rejected {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+
+  @media (max-width: 600px) {
+    .filtros {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    select, button {
+      width: 100%;
+    }
+
+    table {
+      font-size: 0.9rem;
+    }
+  }
+`}</style>
