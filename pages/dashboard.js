@@ -97,6 +97,18 @@ export default function DashboardPage() {
           border-radius: 8px;
           font-weight: bold;
           transition: background-color 0.3s;
+          display: inline-block;
+          text-decoration: none;
+          background-color: #0070f3;
+          color: white;
+          border: none;
+          text-align: center;
         }
 
-        button {
+        button:hover, .link:hover {
+          background-color: #005bb5;
+        }
+      `}</style>
+    </Layout>
+  )
+}
