@@ -1,10 +1,10 @@
-// pages/profile.js
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -23,10 +23,22 @@ export default function ProfilePage() {
     fetchUser()
   }, [])
 
-  if (!user) return <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando perfil...</p>
+  if (!user) {
+    return (
+      <Layout>
+        <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando perfil...</p>
+      </Layout>
+    )
+  }
 
-  const referralCode = user.referral_code || '...'
+  const referralCode = user.referral_code || 'N/A'
   const referralLink = `https://investpro2025.netlify.app/register?ref=${referralCode}`
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(referralLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <Layout>
@@ -42,10 +54,8 @@ export default function ProfilePage() {
               {referralLink}
             </a>
           </p>
-          <button
-            onClick={() => navigator.clipboard.writeText(referralLink)}
-          >
-            Copiar link
+          <button onClick={handleCopy}>
+            {copied ? 'Link copiado!' : 'Copiar link'}
           </button>
         </div>
       </div>
@@ -78,7 +88,7 @@ export default function ProfilePage() {
         }
 
         button:hover {
-          opacity: 0.9;
+          background-color: #45a049;
         }
 
         a {
