@@ -1,5 +1,5 @@
 ﻿// pages/api/register.js
-import { supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabaseClient'
 
 /**
  * Gera um código único começando com "IP" seguido de 8 dígitos

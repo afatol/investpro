@@ -164,3 +164,11 @@ footer {
   color: #888;
   font-size: 0.9rem;
 }
+.site-footer {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #f0f0f0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #666;
+}
