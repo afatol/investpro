@@ -1,4 +1,3 @@
-// pages/deposit.js
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
@@ -15,7 +14,10 @@ export default function DepositPage() {
     setLoading(true)
 
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return window.location.href = '/login'
+    if (!session) {
+      window.location.href = '/login'
+      return
+    }
 
     if (!amount || parseFloat(amount) <= 0) {
       setError('Informe um valor de depósito válido.')
@@ -30,7 +32,8 @@ export default function DepositPage() {
     }
 
     const filePath = `${session.user.id}_${Date.now()}_${file.name}`
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase
+      .storage
       .from('proofs')
       .upload(filePath, file)
 
@@ -40,7 +43,8 @@ export default function DepositPage() {
       return
     }
 
-    const { data: { publicUrl } } = supabase.storage
+    const { data: { publicUrl } } = supabase
+      .storage
       .from('proofs')
       .getPublicUrl(filePath)
 
@@ -71,27 +75,25 @@ export default function DepositPage() {
         {error && <p className="error">{error}</p>}
 
         <form onSubmit={handleSubmit} className="form-deposit">
-          <label>
-            Valor do depósito (USD):
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Ex: 100.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </label>
+          <label htmlFor="amount">Valor do depósito (USD):</label>
+          <input
+            id="amount"
+            type="number"
+            step="0.01"
+            placeholder="Ex: 100.00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+          />
 
-          <label>
-            Comprovante (jpg, png ou pdf):
-            <input
-              type="file"
-              accept=".jpg,.jpeg,.png,.pdf"
-              onChange={(e) => setFile(e.target.files[0])}
-              required
-            />
-          </label>
+          <label htmlFor="proof">Comprovante (jpg, png ou pdf):</label>
+          <input
+            id="proof"
+            type="file"
+            accept=".jpg,.jpeg,.png,.pdf"
+            onChange={(e) => setFile(e.target.files[0])}
+            required
+          />
 
           <button type="submit" disabled={loading}>
             {loading ? 'Enviando...' : 'Enviar Depósito'}
@@ -107,8 +109,8 @@ export default function DepositPage() {
         }
 
         h1 {
-          margin-bottom: 1rem;
           text-align: center;
+          margin-bottom: 1.5rem;
         }
 
         .form-deposit {
@@ -118,40 +120,41 @@ export default function DepositPage() {
         }
 
         label {
-          font-weight: bold;
+          font-weight: 600;
         }
 
         input[type="number"],
         input[type="file"] {
-          width: 100%;
           padding: 0.5rem;
-          margin-top: 0.3rem;
           border: 1px solid #ccc;
           border-radius: 6px;
+          font-size: 1rem;
         }
 
         button {
-          background-color: #4CAF50;
+          background-color: #1976D2;
           color: white;
-          padding: 0.8rem;
           border: none;
+          padding: 0.75rem;
           border-radius: 6px;
           cursor: pointer;
           font-size: 1rem;
         }
 
         button:hover {
-          background-color: #45a049;
+          background-color: #135BA1;
         }
 
         button:disabled {
-          background-color: #999;
+          background-color: #aaa;
           cursor: not-allowed;
         }
 
         .error {
-          color: red;
+          color: #c00;
           font-weight: bold;
+          text-align: center;
+          margin-bottom: 1rem;
         }
 
         @media (max-width: 500px) {
