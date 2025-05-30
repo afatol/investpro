@@ -1,4 +1,3 @@
-// pages/dashboard.js
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
@@ -21,7 +20,7 @@ export default function DashboardPage() {
 
       if (error) {
         console.error('Erro ao buscar perfil:', error)
-        setUser(user) // Ainda exibe info básica
+        setUser(user)
       } else {
         setUser({ ...user, ...data })
       }
@@ -38,83 +37,66 @@ export default function DashboardPage() {
     }
   }
 
-  if (!user) return <p>Carregando...</p>
+  if (!user) return <p style={{ textAlign: 'center' }}>Carregando...</p>
 
   return (
     <Layout>
       <div className="dashboard-container">
         <h1>Olá, {user.email}</h1>
 
-        <section className="card">
-          <h2>Indicações</h2>
-          <p>Você indicou <strong>{user.referrals_count || 0}</strong> usuários.</p>
-          <button onClick={handleCopy}>
-            {copied ? 'Copiado!' : 'Copiar meu código de indicação'}
-          </button>
-        </section>
+        <div className="card-grid">
+          <section className="card">
+            <h2>Indicações</h2>
+            <p>Você indicou <strong>{user.referrals_count || 0}</strong> usuários.</p>
+            <button onClick={handleCopy} aria-label="Copiar código de indicação">
+              {copied ? 'Copiado!' : 'Copiar meu código de indicação'}
+            </button>
+          </section>
 
-        <section className="card">
-          <h2>Rendimentos</h2>
-          <p>Acesse sua nova página de rendimentos para ver gráficos e histórico.</p>
-          <Link href="/rendimentos" className="link">Ir para Rendimentos</Link>
-        </section>
+          <section className="card">
+            <h2>Rendimentos</h2>
+            <p>Acesse sua nova página de rendimentos para ver gráficos e histórico.</p>
+            <Link href="/rendimentos" className="link">Ir para Rendimentos</Link>
+          </section>
+        </div>
       </div>
 
       <style jsx>{`
         .dashboard-container {
-          padding: 1rem;
-          max-width: 800px;
-          margin: 0 auto;
+          padding: 1.5rem;
+          max-width: 900px;
+          margin: auto;
         }
 
         h1 {
           text-align: center;
+          font-size: 1.8rem;
           margin-bottom: 2rem;
+        }
+
+        .card-grid {
+          display: flex;
+          gap: 2rem;
+          flex-wrap: wrap;
+          justify-content: center;
         }
 
         .card {
-          background: #f9f9f9;
-          border: 1px solid #ccc;
+          background: #fff;
+          border: 1px solid #ddd;
           border-radius: 12px;
           padding: 1.5rem;
-          margin-bottom: 2rem;
-          box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+          width: 100%;
+          max-width: 420px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+
+        button, .link {
+          margin-top: 1rem;
+          padding: 0.6rem 1.2rem;
+          border-radius: 8px;
+          font-weight: bold;
+          transition: background-color 0.3s;
         }
 
         button {
-          margin-top: 1rem;
-          padding: 0.5rem 1rem;
-          background-color: #4CAF50;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-        }
-
-        button:hover {
-          background-color: #45a049;
-        }
-
-        .link {
-          display: inline-block;
-          margin-top: 1rem;
-          padding: 0.5rem 1rem;
-          background-color: #1976D2;
-          color: white;
-          text-decoration: none;
-          border-radius: 8px;
-        }
-
-        .link:hover {
-          background-color: #125ca1;
-        }
-
-        @media (max-width: 600px) {
-          .card {
-            padding: 1rem;
-          }
-        }
-      `}</style>
-    </Layout>
-  )
-}
