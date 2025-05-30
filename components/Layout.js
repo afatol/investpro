@@ -1,6 +1,5 @@
 ﻿// components/Layout.js
 import Nav from './Nav'
-import '../styles/globals.css' // Ou use styled-jsx
 
 export default function Layout({ children }) {
   return (
