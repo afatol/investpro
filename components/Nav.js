@@ -1,12 +1,14 @@
 // components/Nav.js
 import Image from 'next/image'
 import Link from 'next/link'
+import { useState } from 'react'
 
 export default function Nav() {
+  const [menuOpen, setMenuOpen] = useState(false)
+
   return (
     <header className="header">
       <div className="logo-container">
-        {/* Logo clicável leva à home */}
         <Link href="/">
           <Image
             src="/logo.png"
@@ -16,13 +18,20 @@ export default function Nav() {
             priority
           />
         </Link>
+        <button
+          className="menu-toggle"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          ☰
+        </button>
       </div>
-      <nav>
+
+      <nav className={menuOpen ? 'open' : ''}>
         <Link href="/dashboard">Dashboard</Link>
         <Link href="/planos">Planos</Link>
         <Link href="/deposit">Depositar</Link>
         <Link href="/withdraw">Sacar</Link>
-        <Link href="/rendimentos">Rendimentos</Link> {/* ← Adicionado aqui */}
+        <Link href="/rendimentos">Rendimentos</Link>
         <Link href="/rede">Minha Rede</Link>
         <Link href="/sobre">Sobre</Link>
         <Link href="/manual">Manual de Uso</Link>
