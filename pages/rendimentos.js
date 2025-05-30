@@ -2,33 +2,29 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
-
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+  ResponsiveContainer
+} from 'recharts'
 
 export default function RendimentosPage() {
   const [transactions, setTransactions] = useState([])
   const [filteredData, setFilteredData] = useState([])
   const [month, setMonth] = useState('')
   const [year, setYear] = useState('')
+  const [chartData, setChartData] = useState([])
 
-  const [chartData, setChartData] = useState({
-    labels: [],
-    datasets: [{
-      label: 'Rendimentos',
-      data: [],
-      borderColor: '#4CAF50',
-      backgroundColor: '#A5D6A7',
-      fill: false,
-      tension: 0.3
-    }]
-  })
-
-  // Carregar transações do usuário
   useEffect(() => {
     const fetchTransactions = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Buscar todas as transações do usuário
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -43,15 +39,12 @@ export default function RendimentosPage() {
 
       setTransactions(data)
       setFilteredData(data)
-
-      // Gerar dados iniciais no gráfico (sem filtro)
       generateChartData(data)
     }
 
     fetchTransactions()
   }, [])
 
-  // Função para filtrar transações por mês e ano
   const applyFilter = () => {
     let filtered = [...transactions]
 
@@ -73,34 +66,26 @@ export default function RendimentosPage() {
     generateChartData(filtered)
   }
 
-  // Gera dados do gráfico a partir das transações filtradas
   const generateChartData = (data) => {
     if (!data.length) {
-      setChartData(prev => ({ ...prev, datasets: [{ ...prev.datasets[0], data: [] }] }))
+      setChartData([])
       return
     }
 
-    const labels = data.map(t => new Date(t.created_at).toLocaleDateString())
     const amounts = data.map(t => t.type === 'deposit' ? t.amount : -t.amount)
-
-    // Calcula saldo acumulado
     let balance = 0
-    const balances = amounts.map(amount => balance += amount)
 
-    setChartData({
-      labels,
-      datasets: [{
-        label: 'Rendimentos',
-        data: balances,
-        borderColor: '#4CAF50',
-        backgroundColor: '#A5D6A7',
-        fill: false,
-        tension: 0.3
-      }]
+    const dataset = data.map((t, i) => {
+      balance += amounts[i]
+      return {
+        date: new Date(t.created_at).toLocaleDateString('pt-BR'),
+        rendimento: balance
+      }
     })
+
+    setChartData(dataset)
   }
 
-  // Lista de meses e anos pra seleção
   const months = [
     { value: '', label: 'Todos os meses' },
     { value: '1', label: 'Janeiro' },
@@ -124,15 +109,12 @@ export default function RendimentosPage() {
       <div className="rendimentos">
         <h1>Meus Rendimentos</h1>
 
-        {/* Filtros */}
         <section className="filtros">
           <div className="filtro-group">
             <label htmlFor="mes">Mês:</label>
             <select id="mes" value={month} onChange={(e) => setMonth(e.target.value)}>
               {months.map(m => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
+                <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
           </div>
@@ -150,17 +132,24 @@ export default function RendimentosPage() {
           <button onClick={applyFilter}>Aplicar Filtro</button>
         </section>
 
-        {/* Gráfico */}
         <section className="grafico">
           <h2>Evolução Financeira</h2>
-          {chartData.labels.length > 0 ? (
-            <Line data={chartData} />
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="rendimento" stroke="#4CAF50" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
           ) : (
             <p>Nenhuma transação encontrada.</p>
           )}
         </section>
 
-        {/* Histórico */}
         <section className="transacoes">
           <h2>Histórico de Transações</h2>
           <table>
@@ -176,9 +165,7 @@ export default function RendimentosPage() {
               {filteredData.map((t) => (
                 <tr key={t.id}>
                   <td>{t.type === 'deposit' ? 'Depósito' : 'Saque'}</td>
-                  <td>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount)}
-                  </td>
+                  <td>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount)}</td>
                   <td>{new Date(t.created_at).toLocaleDateString()}</td>
                   <td><span className={`status ${t.status}`}>{t.status}</span></td>
                 </tr>
