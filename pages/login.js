@@ -1,4 +1,3 @@
-// pages/login.js
 import { useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '../lib/supabaseClient'
@@ -28,20 +27,22 @@ export default function Login() {
           <input
             type="email"
             placeholder="Email"
-            required
+            value={email}
             onChange={e => setEmail(e.target.value)}
+            required
           />
           <input
             type="password"
             placeholder="Senha"
-            required
+            value={senha}
             onChange={e => setSenha(e.target.value)}
+            required
           />
           <button type="submit">Entrar</button>
         </form>
 
         <div className="links">
-          <Link href="/forgot-password">Esqueci senha</Link>
+          <Link href="/forgot-password">Esqueci a senha</Link>
           <span> | </span>
           <Link href="/register">Cadastre-se</Link>
           <span> | </span>
@@ -62,13 +63,14 @@ export default function Login() {
           max-width: 400px;
           background: #fff;
           padding: 2rem;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          border-radius: 12px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
         h1 {
           text-align: center;
           margin-bottom: 1.5rem;
+          color: #1976D2;
         }
 
         input {
@@ -76,39 +78,40 @@ export default function Login() {
           padding: 0.75rem;
           margin-bottom: 1rem;
           border: 1px solid #ccc;
-          border-radius: 6px;
+          border-radius: 8px;
           font-size: 1rem;
         }
 
         button {
           width: 100%;
           padding: 0.75rem;
-          background-color: #4CAF50;
+          background-color: #1976D2;
           color: white;
           border: none;
-          border-radius: 6px;
+          border-radius: 8px;
           font-size: 1rem;
           cursor: pointer;
         }
 
         button:hover {
-          background-color: #45a049;
+          background-color: #125ca1;
         }
 
         .error {
           color: red;
           margin-bottom: 1rem;
           text-align: center;
+          font-weight: bold;
         }
 
         .links {
-          margin-top: 1rem;
+          margin-top: 1.5rem;
           text-align: center;
           font-size: 0.95rem;
         }
 
         .links a {
-          color: #1a73e8;
+          color: #1976D2;
           text-decoration: none;
         }
 
@@ -118,4 +121,14 @@ export default function Login() {
 
         @media (max-width: 480px) {
           .form-card {
-            padding: 1.5
+            padding: 1.5rem;
+          }
+
+          h1 {
+            font-size: 1.5rem;
+          }
+        }
+      `}</style>
+    </div>
+  )
+}
