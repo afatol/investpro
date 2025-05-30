@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
+import Link from 'next/link'
+
 
 export default function DashboardPage() {
   const [user, setUser] = useState(null)
