@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import Image from 'next/image'
 
 export default function Layout({ children }) {
   const router = useRouter()
@@ -22,8 +23,18 @@ export default function Layout({ children }) {
       <nav className="top-nav">
         <div className="nav-container">
           <Link href="/">
-            <span className="logo">InvestPro</span>
+            {/* Use o logo como imagem abaixo ou deixe o texto como fallback */}
+            <div className="logo">
+              <Image
+                src="/logo.png"
+                alt="InvestPro"
+                width={130}
+                height={38}
+                priority
+              />
+            </div>
           </Link>
+
           <div className="nav-links">
             {navItems.map(item => (
               <Link
@@ -72,8 +83,8 @@ export default function Layout({ children }) {
         }
 
         .logo {
-          font-size: 1.5rem;
-          font-weight: bold;
+          display: flex;
+          align-items: center;
           cursor: pointer;
         }
 
@@ -128,12 +139,13 @@ export default function Layout({ children }) {
 
         @media (max-width: 640px) {
           .nav-link {
-            font-size: 0.92rem;
+            font-size: 0.9rem;
             padding: 0.3rem 0.6rem;
           }
 
-          .logo {
-            font-size: 1.2rem;
+          .logo img {
+            width: 110px;
+            height: auto;
           }
         }
       `}</style>
