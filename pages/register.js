@@ -73,11 +73,18 @@ export default function RegisterPage() {
       //   throw profileError
       // }
 
-      // 4) Se chegou aqui sem erros, redireciona para a página de login diretamente
+      // 4) Cadastro bem-sucedido: redireciona para a página de login
       router.push('/login')
     } catch (error) {
       console.error('Erro ao cadastrar usuário:', error.message)
-      if (error.status === 500) {
+
+      // 5) Tratamento específico para "User already registered"
+      if (
+        error.message &&
+        error.message.toLowerCase().includes('already registered')
+      ) {
+        setErrorMsg('Este e-mail já está cadastrado. Faça login ou recupere a senha.')
+      } else if (error.status === 500) {
         setErrorMsg(
           'Houve um problema no servidor ao salvar o usuário. ' +
             'Verifique as configurações do banco de dados ou tente novamente mais tarde.'
