@@ -1,3 +1,5 @@
+// pages/planos.js
+
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
@@ -11,25 +13,54 @@ export default function Planos() {
 
   useEffect(() => {
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return window.location.href = '/login'
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) {
+        window.location.href = '/login'
+        return
+      }
 
-      const { data: plansList } = await supabase.from('plans').select('id, name, frequency')
-      setPlans(plansList)
+      // 1) Buscar lista de planos (apenas id e name, sem “frequency”)
+      const { data: plansList, error: plansErr } = await supabase
+        .from('plans')
+        .select('id, name')
+      if (plansErr) {
+        console.error(plansErr)
+      } else {
+        setPlans(plansList)
+      }
 
-      let { data: prof } = await supabase
+      // 2) Tentar ler a linha em “user_profiles” para este usuário
+      let { data: prof, error: profErr } = await supabase
         .from('user_profiles')
         .select('plan_id, invest_amount')
         .eq('user_id', session.user.id)
         .maybeSingle()
 
+      if (profErr) {
+        console.error(profErr)
+      }
+
+      // 3) Se não existir, cria a linha vazia (com referral_code gerado)
       if (!prof) {
-        const code = 'Fx' + Math.random().toString(36).slice(2, 8).toUpperCase()
-        const { data: newProf } = await supabase
+        const code = 'FX' + Math.random().toString(36).slice(2, 8).toUpperCase()
+        const { data: newProf, error: insertErr } = await supabase
           .from('user_profiles')
-          .insert({ user_id: session.user.id, referral_code: code })
+          .insert({
+            user_id: session.user.id,
+            referral_code: code,
+            invest_amount: null,
+            plan_id: null,
+          })
           .single()
-        prof = newProf
+
+        if (insertErr) {
+          console.error(insertErr)
+          setError('Falha ao criar perfil de investimento.')
+        } else {
+          prof = newProf
+        }
       }
 
       setProfile(prof)
@@ -41,19 +72,36 @@ export default function Planos() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) {
+      window.location.href = '/login'
+      return
+    }
 
     const { error: upErr } = await supabase
       .from('user_profiles')
-      .update({ plan_id: selectedPlan, invest_amount: parseFloat(amount) })
+      .update({
+        plan_id: selectedPlan,
+        invest_amount: parseFloat(amount),
+      })
       .eq('user_id', session.user.id)
 
-    if (upErr) setError(upErr.message)
-    else alert('Plano e valor atualizados com sucesso!')
+    if (upErr) {
+      setError(upErr.message)
+    } else {
+      alert('Plano e valor atualizados com sucesso!')
+    }
   }
 
-  if (!profile) return <Layout><p className="container">Carregando...</p></Layout>
+  if (!profile) {
+    return (
+      <Layout>
+        <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando...</p>
+      </Layout>
+    )
+  }
 
   return (
     <Layout>
@@ -63,14 +111,15 @@ export default function Planos() {
 
         <form onSubmit={handleSubmit}>
           <div className="plans-grid">
-            {plans.map(plan => (
+            {plans.map((plan) => (
               <div
                 key={plan.id}
-                className={`plan-card ${selectedPlan === plan.id ? 'selected' : ''}`}
+                className={`plan-card ${
+                  selectedPlan === plan.id ? 'selected' : ''
+                }`}
                 onClick={() => setSelectedPlan(plan.id)}
               >
                 <h2>{plan.name}</h2>
-                <p>{plan.frequency}</p>
                 {selectedPlan === plan.id && <small>Selecionado</small>}
               </div>
             ))}
@@ -82,11 +131,13 @@ export default function Planos() {
               type="number"
               value={amount}
               required
-              onChange={e => setAmount(e.target.value)}
+              onChange={(e) => setAmount(e.target.value)}
             />
           </label>
 
-          <button className="btn" type="submit">Salvar</button>
+          <button className="btn" type="submit">
+            Salvar
+          </button>
         </form>
       </div>
 
@@ -119,7 +170,7 @@ export default function Planos() {
         }
 
         .plan-card.selected {
-          border-color: #4CAF50;
+          border-color: #4caf50;
           background-color: #f0fff0;
         }
 
@@ -129,7 +180,7 @@ export default function Planos() {
           font-weight: bold;
         }
 
-        input[type="number"] {
+        input[type='number'] {
           width: 100%;
           padding: 0.5rem;
           border-radius: 6px;
@@ -141,7 +192,7 @@ export default function Planos() {
           width: 100%;
           padding: 0.75rem;
           font-size: 1rem;
-          background-color: #4CAF50;
+          background-color: #4caf50;
           color: white;
           border: none;
           border-radius: 6px;
