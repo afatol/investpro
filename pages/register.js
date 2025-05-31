@@ -39,51 +39,45 @@ export default function RegisterPage() {
 
     try {
       // 2) Tenta registrar o usuário no Supabase Auth
-      //    Se você tiver um “profiles” ou outra tabela relacionada que é populada via TRIGGER no banco,
-      //    basta chamar auth.signUp e o trigger deve criar o registro de profile automaticamente.
-      //    Caso não haja trigger, você precisará inserir manualmente na tabela de perfis após o signUp.
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password
-      }, {
-        data: {
-          // Exemplo: se você quiser salvar o código de indicação como metadado de usuário:
-          referral_code: referralCode.trim() || null
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
+        {
+          email: email.trim(),
+          password
+        },
+        {
+          data: {
+            // Armazena o código de indicação como metadado, se houver
+            referral_code: referralCode.trim() || null
+          }
         }
-      })
+      )
 
       if (signUpError) {
-        // Erro genérico do Supabase (por exemplo, email já cadastrado, regras de RLS, etc.)
+        // Erro genérico do Supabase (por exemplo, email já cadastrado, RLS etc.)
         throw signUpError
       }
 
-      // 3) Se sua arquitetura exigir que você crie manualmente um registro em 'profiles',
-      //    descomente o bloco abaixo e adapte para a estrutura da sua tabela.
-
-      // const user = signUpData.user
+      // 3) Opcional: se não tiver trigger em 'profiles', insira manualmente
+      // const newUser = signUpData.user
       // const { error: profileError } = await supabase
       //   .from('profiles')
       //   .insert([
       //     {
-      //       id: user.id,
-      //       email: user.email,
+      //       id: newUser.id,
+      //       // Adicione aqui colunas obrigatórias, se existirem
       //       referral_code: referralCode.trim() || null,
       //       created_at: new Date()
-      //       // ...outros campos obrigatórios da sua tabela de perfis
       //     }
       //   ])
       // if (profileError) {
-      //   // Se houve erro ao criar profile, você pode desfazer o cadastro ou apenas mostrar a mensagem
+      //   await supabase.auth.admin.deleteUser(newUser.id)
       //   throw profileError
       // }
 
-      // 4) Se chegou aqui sem erros, redireciona para uma página de “confirmação” ou “login”
-      //    Você pode exibir uma mensagem informando que um email de confirmação (se aplicável) foi enviado.
-      router.push('/check-email') // ou '/login', conforme seu fluxo
-
+      // 4) Se chegou aqui sem erros, redireciona para a página de login
+      router.push('/login')
     } catch (error) {
       console.error('Erro ao cadastrar usuário:', error.message)
-      // Exibe a mensagem de erro apropriada
       if (error.status === 500) {
         setErrorMsg(
           'Houve um problema no servidor ao salvar o usuário. ' +
@@ -99,7 +93,15 @@ export default function RegisterPage() {
 
   return (
     <Layout>
-      <div style={{ maxWidth: '400px', margin: '2rem auto', padding: '1.5rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+      <div
+        style={{
+          maxWidth: '400px',
+          margin: '2rem auto',
+          padding: '1.5rem',
+          border: '1px solid #ddd',
+          borderRadius: '8px'
+        }}
+      >
         <h2 style={{ marginBottom: '1rem', textAlign: 'center' }}>Cadastro de Usuário</h2>
 
         {errorMsg && (
@@ -118,7 +120,9 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSignUp}>
-          <label htmlFor="email" style={{ display: 'block', marginBottom: '0.25rem' }}>Email<span style={{ color: 'red' }}>*</span>:</label>
+          <label htmlFor="email" style={{ display: 'block', marginBottom: '0.25rem' }}>
+            Email<span style={{ color: 'red' }}>*</span>:
+          </label>
           <input
             id="email"
             type="email"
@@ -135,7 +139,9 @@ export default function RegisterPage() {
             }}
           />
 
-          <label htmlFor="password" style={{ display: 'block', marginBottom: '0.25rem' }}>Senha<span style={{ color: 'red' }}>*</span>:</label>
+          <label htmlFor="password" style={{ display: 'block', marginBottom: '0.25rem' }}>
+            Senha<span style={{ color: 'red' }}>*</span>:
+          </label>
           <input
             id="password"
             type="password"
@@ -152,7 +158,9 @@ export default function RegisterPage() {
             }}
           />
 
-          <label htmlFor="confirmPassword" style={{ display: 'block', marginBottom: '0.25rem' }}>Confirmar Senha<span style={{ color: 'red' }}>*</span>:</label>
+          <label htmlFor="confirmPassword" style={{ display: 'block', marginBottom: '0.25rem' }}>
+            Confirmar Senha<span style={{ color: 'red' }}>*</span>:
+          </label>
           <input
             id="confirmPassword"
             type="password"
@@ -169,7 +177,9 @@ export default function RegisterPage() {
             }}
           />
 
-          <label htmlFor="referralCode" style={{ display: 'block', marginBottom: '0.25rem' }}>Código de Indicação (opcional):</label>
+          <label htmlFor="referralCode" style={{ display: 'block', marginBottom: '0.25rem' }}>
+            Código de Indicação (opcional):
+          </label>
           <input
             id="referralCode"
             type="text"
