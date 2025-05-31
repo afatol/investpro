@@ -1,14 +1,27 @@
 // components/Nav.js
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
+import { supabase } from '../lib/supabaseClient'
 
 export default function Nav() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [user, setUser] = useState(null)
   const router = useRouter()
 
-  const links = [
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) setUser(session.user)
+      else setUser(null)
+    }
+    checkUser()
+  }, [])
+
+  const isAdmin = user?.email === 'admin@investpro.com' // Altere este e-mail se quiser
+
+  const loggedInLinks = [
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/planos', label: 'Planos' },
     { href: '/deposit', label: 'Depositar' },
@@ -18,8 +31,17 @@ export default function Nav() {
     { href: '/rede', label: 'Minha Rede' },
     { href: '/manual', label: 'Manual de Uso' },
     { href: '/sobre', label: 'Sobre' },
+    ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
     { href: '/logout', label: 'Sair' }
   ]
+
+  const loggedOutLinks = [
+    { href: '/login', label: 'Entrar' },
+    { href: '/register', label: 'Registrar' },
+    { href: '/sobre', label: 'Sobre' }
+  ]
+
+  const linksToShow = user ? loggedInLinks : loggedOutLinks
 
   return (
     <header className="nav-header">
@@ -39,7 +61,7 @@ export default function Nav() {
         </button>
 
         <nav className={`nav-links ${menuOpen ? 'open' : ''}`}>
-          {links.map(({ href, label }) => (
+          {linksToShow.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
