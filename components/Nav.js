@@ -2,51 +2,26 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabaseClient'
 
 export default function Nav() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [user, setUser] = useState(null)
-  const router = useRouter()
 
   useEffect(() => {
-    const checkUser = async () => {
+    const fetchUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) setUser(session.user)
-      else setUser(null)
+      setUser(session?.user || null)
     }
-    checkUser()
+    fetchUser()
   }, [])
 
-  const isAdmin = user?.email === 'admin@investpro.com' // Altere este e-mail se quiser
-
-  const loggedInLinks = [
-    { href: '/dashboard', label: 'Dashboard' },
-    { href: '/planos', label: 'Planos' },
-    { href: '/deposit', label: 'Depositar' },
-    { href: '/withdraw', label: 'Sacar' },
-    { href: '/rendimentos', label: 'Rendimentos' },
-    { href: '/transacoes', label: 'Transações' },
-    { href: '/rede', label: 'Minha Rede' },
-    { href: '/manual', label: 'Manual de Uso' },
-    { href: '/sobre', label: 'Sobre' },
-    ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
-    { href: '/logout', label: 'Sair' }
-  ]
-
-  const loggedOutLinks = [
-    { href: '/login', label: 'Entrar' },
-    { href: '/register', label: 'Registrar' },
-    { href: '/sobre', label: 'Sobre' }
-  ]
-
-  const linksToShow = user ? loggedInLinks : loggedOutLinks
+  const isAdmin = user?.email === 'admin@investpro.com' // Altere para seu e-mail real
 
   return (
-    <header className="nav-header">
-      <div className="nav-container">
-        <Link href="/" className="logo">
+    <header className="header">
+      <div className="logo-container">
+        <Link href="/">
           <Image
             src="/logo.png"
             alt="InvestPro"
@@ -55,93 +30,97 @@ export default function Nav() {
             priority
           />
         </Link>
-
-        <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)}>
+        <button
+          className="menu-toggle"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
           ☰
         </button>
-
-        <nav className={`nav-links ${menuOpen ? 'open' : ''}`}>
-          {linksToShow.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className={router.pathname === href ? 'active' : ''}
-              onClick={() => setMenuOpen(false)}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
       </div>
 
+      <nav className={menuOpen ? 'open' : ''}>
+        {user ? (
+          <>
+            <Link href="/dashboard">Dashboard</Link>
+            <Link href="/planos">Planos</Link>
+            <Link href="/deposit">Depositar</Link>
+            <Link href="/withdraw">Sacar</Link>
+            <Link href="/rendimentos">Rendimentos</Link>
+            <Link href="/transacoes">Transações</Link>
+            <Link href="/rede">Minha Rede</Link>
+            <Link href="/manual">Manual de Uso</Link>
+            <Link href="/sobre">Sobre</Link>
+            {isAdmin && <Link href="/admin">Admin</Link>}
+            <Link href="/logout">Sair</Link>
+          </>
+        ) : (
+          <>
+            <Link href="/login">Login</Link>
+            <Link href="/register">Registrar</Link>
+            <Link href="/sobre">Sobre</Link>
+          </>
+        )}
+      </nav>
+
       <style jsx>{`
-        .nav-header {
+        .header {
+          display: flex;
+          flex-direction: column;
+          background: #0a0a23;
+          padding: 0.8rem 1.2rem;
+          color: white;
           position: sticky;
           top: 0;
           z-index: 1000;
-          background: white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .nav-container {
+        .logo-container {
           display: flex;
-          align-items: center;
           justify-content: space-between;
-          max-width: 1200px;
-          padding: 1rem;
-          margin: auto;
+          align-items: center;
         }
 
-        .logo {
+        nav {
           display: flex;
-          align-items: center;
+          flex-wrap: wrap;
+          gap: 1rem;
+          margin-top: 0.5rem;
+        }
+
+        nav a {
+          color: white;
+          font-weight: 500;
+          text-decoration: none;
+        }
+
+        nav a:hover {
+          text-decoration: underline;
         }
 
         .menu-toggle {
-          display: none;
           background: none;
           border: none;
-          font-size: 1.8rem;
-          cursor: pointer;
+          color: white;
+          font-size: 1.5rem;
         }
 
-        .nav-links {
-          display: flex;
-          gap: 1.2rem;
-        }
-
-        .nav-links a {
-          text-decoration: none;
-          color: #333;
-          font-weight: 500;
-          transition: color 0.3s;
-        }
-
-        .nav-links a:hover,
-        .nav-links a.active {
-          color: #0070f3;
-        }
-
-        @media (max-width: 768px) {
+        @media (min-width: 768px) {
           .menu-toggle {
-            display: block;
+            display: none;
           }
 
-          .nav-links {
+          nav {
+            margin-top: 0;
+            flex-direction: row;
+          }
+        }
+
+        @media (max-width: 767px) {
+          nav {
             display: ${menuOpen ? 'flex' : 'none'};
             flex-direction: column;
-            position: absolute;
-            top: 70px;
-            left: 0;
-            width: 100%;
-            background: white;
-            padding: 1rem;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-          }
-
-          .nav-links a {
-            padding: 0.8rem 0;
-            border-bottom: 1px solid #eee;
+            gap: 0.75rem;
+            padding-top: 0.5rem;
           }
         }
       `}</style>
