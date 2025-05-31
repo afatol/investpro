@@ -3,33 +3,63 @@ import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
 import Link from 'next/link'
 
+const formatUSD = (value) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+
 export default function DashboardPage() {
   const [user, setUser] = useState(null)
+  const [totais, setTotais] = useState({ depositos: 0, saques: 0, rendimentos: 0 })
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+    const fetchUserAndDados = async () => {
+      const { data: { user }, error: sessionError } = await supabase.auth.getUser()
+      if (sessionError || !user) return
 
-      const { data: profile, error } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle()
 
-      if (error) {
-        console.error('Erro ao buscar perfil:', error)
-        setUser(user)
-      } else if (!profile) {
-        console.warn('Perfil não encontrado.')
-        setUser(user)
-      } else {
-        setUser({ ...user, ...profile })
+      const enrichedUser = profile ? { ...user, ...profile } : user
+      setUser(enrichedUser)
+
+      // Buscar totais de depósitos e saques aprovados
+      const { data: transacoes } = await supabase
+        .from('transactions')
+        .select('type, amount')
+        .eq('user_id', user.id)
+        .eq('status', 'approved')
+
+      let depositos = 0
+      let saques = 0
+      if (transacoes) {
+        transacoes.forEach(t => {
+          const valor = parseFloat(t.amount)
+          if (t.type === 'depósito') depositos += valor
+          if (t.type === 'saque') saques += valor
+        })
       }
+
+      // Buscar rendimentos aplicados (tabela nova)
+      const { data: rendimentos } = await supabase
+        .from('rendimentos_aplicados')
+        .select('valor')
+        .eq('user_id', user.id)
+
+      const totalRendimentos = rendimentos
+        ? rendimentos.reduce((acc, r) => acc + parseFloat(r.valor), 0)
+        : 0
+
+      setTotais({
+        depositos,
+        saques,
+        rendimentos: totalRendimentos
+      })
     }
 
-    fetchUser()
+    fetchUserAndDados()
   }, [])
 
   const handleCopy = () => {
@@ -52,15 +82,30 @@ export default function DashboardPage() {
             <h2>Indicações</h2>
             <p>Seu código: <strong>{user.referral_code || 'N/A'}</strong></p>
             <p>Você indicou <strong>{user.referrals_count || 0}</strong> usuários.</p>
-            <button onClick={handleCopy} aria-label="Copiar código de indicação">
+            <button onClick={handleCopy}>
               {copied ? 'Copiado!' : 'Copiar meu código'}
             </button>
           </section>
 
           <section className="card">
-            <h2>Rendimentos</h2>
-            <p>Acesse sua nova página de rendimentos para ver gráficos e histórico.</p>
-            <Link href="/rendimentos" className="link">Ir para Rendimentos</Link>
+            <h2>Total Investido</h2>
+            <p>{formatUSD(totais.depositos)}</p>
+          </section>
+
+          <section className="card">
+            <h2>Total Sacado</h2>
+            <p>{formatUSD(totais.saques)}</p>
+          </section>
+
+          <section className="card">
+            <h2>Rendimentos Acumulados</h2>
+            <p>{formatUSD(totais.rendimentos)}</p>
+          </section>
+
+          <section className="card">
+            <h2>Navegação</h2>
+            <Link href="/transacoes" className="link">Ver Transações</Link><br />
+            <Link href="/rendimentos" className="link">Ver Rendimentos</Link>
           </section>
         </div>
       </div>
@@ -68,7 +113,7 @@ export default function DashboardPage() {
       <style jsx>{`
         .dashboard-container {
           padding: 1.5rem;
-          max-width: 900px;
+          max-width: 960px;
           margin: auto;
         }
 
@@ -80,7 +125,7 @@ export default function DashboardPage() {
 
         .card-grid {
           display: flex;
-          gap: 2rem;
+          gap: 1.5rem;
           flex-wrap: wrap;
           justify-content: center;
         }
@@ -91,8 +136,9 @@ export default function DashboardPage() {
           border-radius: 12px;
           padding: 1.5rem;
           width: 100%;
-          max-width: 420px;
+          max-width: 380px;
           box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+          text-align: center;
         }
 
         button, .link {
@@ -106,11 +152,16 @@ export default function DashboardPage() {
           background-color: #0070f3;
           color: white;
           border: none;
-          text-align: center;
         }
 
         button:hover, .link:hover {
           background-color: #005bb5;
+        }
+
+        @media (max-width: 640px) {
+          .card {
+            max-width: 100%;
+          }
         }
       `}</style>
     </Layout>
