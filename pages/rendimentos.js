@@ -1,10 +1,11 @@
+// pages/rendimentos.js
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts'
 
 export default function RendimentosPage() {
-  const [data, setData] = useState([])
+  const [transacoes, setTransacoes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -13,20 +14,19 @@ export default function RendimentosPage() {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) return window.location.href = '/login'
 
-      const userId = session.user?.id
-      if (!userId) return setError('Usuário não autenticado.')
+      const userId = session.user.id
 
-      const { data: depositos, error } = await supabase
-        .from('depositos')
+      const { data, error } = await supabase
+        .from('transactions')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .order('data', { ascending: false })
+        .order('data', { ascending: true })
 
       if (error) {
-        setError('Erro ao buscar depósitos.')
+        setError('Erro ao buscar dados')
       } else {
-        setData(depositos || [])
+        setTransacoes(data || [])
       }
 
       setLoading(false)
@@ -35,15 +35,21 @@ export default function RendimentosPage() {
     fetchData()
   }, [])
 
-  const chartData = data.map(item => ({
-    name: new Date(item.data).toLocaleDateString(),
-    valor: Number(item.valor)
-  })).reverse()
+  const calcularSaldoAcumulado = () => {
+    let saldo = 0
+    return transacoes.map(t => {
+      saldo += t.tipo === 'deposit' ? parseFloat(t.valor) : -parseFloat(t.valor)
+      return {
+        data: new Date(t.data).toLocaleDateString('pt-BR'),
+        saldo: parseFloat(saldo.toFixed(2))
+      }
+    })
+  }
 
   return (
     <Layout>
       <div className="rendimentos">
-        <h1>Rendimentos</h1>
+        <h1>Minha Evolução Financeira</h1>
 
         {loading && <p>Carregando...</p>}
         {error && <p style={{ color: 'red' }}>{error}</p>}
@@ -51,36 +57,38 @@ export default function RendimentosPage() {
         {!loading && !error && (
           <>
             <div className="grafico">
-              <h2>Gráfico de Depósitos Aprovados</h2>
-              {chartData.length > 0 ? (
+              {transacoes.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <XAxis dataKey="name" />
+                  <LineChart data={calcularSaldoAcumulado()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="data" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="valor" fill="#4CAF50" />
-                  </BarChart>
+                    <Line type="monotone" dataKey="saldo" stroke="#4CAF50" strokeWidth={2} />
+                  </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <p style={{ textAlign: 'center' }}>Nenhum dado disponível para exibição.</p>
+                <p style={{ textAlign: 'center' }}>Nenhuma transação aprovada ainda.</p>
               )}
             </div>
 
             <div className="transacoes">
-              <h2>Histórico de Depósitos</h2>
+              <h2>Histórico de Transações</h2>
               <table>
                 <thead>
                   <tr>
                     <th>Data</th>
+                    <th>Tipo</th>
                     <th>Valor (USD)</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.map((item, i) => (
+                  {transacoes.map((item, i) => (
                     <tr key={i}>
                       <td>{new Date(item.data).toLocaleDateString()}</td>
-                      <td>{Number(item.valor).toFixed(2)}</td>
+                      <td>{item.tipo === 'deposit' ? 'Depósito' : 'Saque'}</td>
+                      <td>{parseFloat(item.valor).toFixed(2)}</td>
                       <td className={`status ${item.status}`}>{item.status}</td>
                     </tr>
                   ))}
