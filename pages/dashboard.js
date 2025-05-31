@@ -12,17 +12,20 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       if (error) {
         console.error('Erro ao buscar perfil:', error)
-        setUser(user) // Fallback mínimo
+        setUser(user)
+      } else if (!profile) {
+        console.warn('Perfil não encontrado.')
+        setUser(user)
       } else {
-        setUser({ ...user, ...data })
+        setUser({ ...user, ...profile })
       }
     }
 
@@ -47,19 +50,11 @@ export default function DashboardPage() {
         <div className="card-grid">
           <section className="card">
             <h2>Indicações</h2>
+            <p>Seu código: <strong>{user.referral_code || 'N/A'}</strong></p>
             <p>Você indicou <strong>{user.referrals_count || 0}</strong> usuários.</p>
-
-            <div className="code-section">
-              <label>Código de indicação:</label>
-              <div className="code-box">
-                <span className="referral-code">
-                  {user.referral_code || '—'}
-                </span>
-                <button onClick={handleCopy} aria-label="Copiar código">
-                  {copied ? 'Copiado!' : 'Copiar'}
-                </button>
-              </div>
-            </div>
+            <button onClick={handleCopy} aria-label="Copiar código de indicação">
+              {copied ? 'Copiado!' : 'Copiar meu código'}
+            </button>
           </section>
 
           <section className="card">
@@ -85,8 +80,8 @@ export default function DashboardPage() {
 
         .card-grid {
           display: flex;
-          flex-wrap: wrap;
           gap: 2rem;
+          flex-wrap: wrap;
           justify-content: center;
         }
 
@@ -100,33 +95,8 @@ export default function DashboardPage() {
           box-shadow: 0 2px 6px rgba(0,0,0,0.06);
         }
 
-        .code-section {
-          margin-top: 1rem;
-        }
-
-        .code-section label {
-          display: block;
-          margin-bottom: 0.5rem;
-          font-weight: 600;
-        }
-
-        .code-box {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .referral-code {
-          background: #f0f0f0;
-          padding: 0.4rem 0.8rem;
-          border-radius: 6px;
-          font-family: monospace;
-          font-weight: bold;
-          color: #333;
-          font-size: 1rem;
-        }
-
         button, .link {
+          margin-top: 1rem;
           padding: 0.6rem 1.2rem;
           border-radius: 8px;
           font-weight: bold;
@@ -137,18 +107,10 @@ export default function DashboardPage() {
           color: white;
           border: none;
           text-align: center;
-          cursor: pointer;
         }
 
         button:hover, .link:hover {
           background-color: #005bb5;
-        }
-
-        @media (max-width: 600px) {
-          .code-box {
-            flex-direction: column;
-            align-items: stretch;
-          }
         }
       `}</style>
     </Layout>
