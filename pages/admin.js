@@ -41,10 +41,10 @@ export default function AdminPage() {
         )
 
         if (uniqueUserIds.length > 0) {
-          // 4) Busca perfis correspondentes (campo 'name')
+          // 4) Busca perfis correspondentes (campo 'name' apenas)
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, name, email')
+            .select('id, name')
             .in('id', uniqueUserIds)
 
           if (profilesError) throw profilesError
@@ -52,7 +52,7 @@ export default function AdminPage() {
           // 5) Monta mapa user_id → nome
           const map = {}
           profilesData.forEach((p) => {
-            map[p.id] = { nome: p.name || p.email || '—', email: p.email }
+            map[p.id] = p.name || '—'
           })
           setProfilesMap(map)
         }
@@ -172,8 +172,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {filteredTx.map((t) => {
-                    const perfil = profilesMap[t.user_id]
-                    const nomeUsuario = perfil ? perfil.nome : 'N/A'
+                    const nomeUsuario = profilesMap[t.user_id] || 'N/A'
                     const dataFormatada = t.data
                       ? new Date(t.data).toLocaleDateString('pt-BR')
                       : '—'
@@ -184,7 +183,7 @@ export default function AdminPage() {
                         <td>{t.type}</td>
                         <td>{formatUSD(t.amount)}</td>
                         <td>
-                          <span className={`status {t.status}`}>
+                          <span className={`status ${t.status}`}>
                             {t.status}
                           </span>
                         </td>
