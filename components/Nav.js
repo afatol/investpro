@@ -1,127 +1,86 @@
 // components/Nav.js
-import Image from 'next/image'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { useRouter } from 'next/router'
+
+const navItems = [
+  { label: 'Dashboard', href: '/dashboard' },
+  { label: 'Transações', href: '/transacoes' },
+  { label: 'Rendimentos', href: '/rendimentos' },
+  { label: 'Depósitos', href: '/deposit' },
+  { label: 'Saques', href: '/withdraw' },
+  { label: 'Minha Rede', href: '/rede' },
+  { label: 'Planos', href: '/planos' },
+  { label: 'Manual', href: '/manual' },
+  { label: 'Sobre', href: '/sobre' },
+  { label: 'Sair', href: '/logout' }
+]
 
 export default function Nav() {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [user, setUser] = useState(null)
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user || null)
-    }
-    fetchUser()
-  }, [])
-
-  const isAdmin = user?.email === 'admin@investpro.com' // Altere para seu e-mail real
+  const router = useRouter()
 
   return (
-    <header className="header">
-      <div className="logo-container">
-        <Link href="/">
-          <Image
-            src="/logo.png"
-            alt="InvestPro"
-            width={140}
-            height={40}
-            priority
-          />
-        </Link>
-        <button
-          className="menu-toggle"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          ☰
-        </button>
+    <header className="top-nav">
+      <div className="nav-container">
+        <Link href="/" className="logo">InvestPro</Link>
+        <nav className="nav-links">
+          {navItems.map(item => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`nav-link ${router.pathname === item.href ? 'active' : ''}`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
       </div>
 
-      <nav className={menuOpen ? 'open' : ''}>
-        {user ? (
-          <>
-            <Link href="/dashboard">Dashboard</Link>
-            <Link href="/planos">Planos</Link>
-            <Link href="/deposit">Depositar</Link>
-            <Link href="/withdraw">Sacar</Link>
-            <Link href="/rendimentos">Rendimentos</Link>
-            <Link href="/transacoes">Transações</Link>
-            <Link href="/rede">Minha Rede</Link>
-            <Link href="/manual">Manual de Uso</Link>
-            <Link href="/sobre">Sobre</Link>
-            {isAdmin && <Link href="/admin">Admin</Link>}
-            <Link href="/logout">Sair</Link>
-          </>
-        ) : (
-          <>
-            <Link href="/login">Login</Link>
-            <Link href="/register">Registrar</Link>
-            <Link href="/sobre">Sobre</Link>
-          </>
-        )}
-      </nav>
-
       <style jsx>{`
-        .header {
-          display: flex;
-          flex-direction: column;
-          background: #0a0a23;
-          padding: 0.8rem 1.2rem;
+        .top-nav {
+          background-color: #0070f3;
           color: white;
-          position: sticky;
-          top: 0;
-          z-index: 1000;
+          padding: 0.8rem 1rem;
         }
 
-        .logo-container {
+        .nav-container {
+          max-width: 1200px;
+          margin: auto;
           display: flex;
+          flex-wrap: wrap;
           justify-content: space-between;
           align-items: center;
         }
 
-        nav {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 1rem;
-          margin-top: 0.5rem;
-        }
-
-        nav a {
+        .logo {
+          font-size: 1.4rem;
+          font-weight: bold;
           color: white;
-          font-weight: 500;
           text-decoration: none;
         }
 
-        nav a:hover {
-          text-decoration: underline;
+        .nav-links {
+          display: flex;
+          gap: 1rem;
+          flex-wrap: wrap;
         }
 
-        .menu-toggle {
-          background: none;
-          border: none;
+        .nav-link {
           color: white;
-          font-size: 1.5rem;
+          text-decoration: none;
+          font-weight: 500;
+          padding: 0.4rem 0.6rem;
+          border-radius: 5px;
+          transition: background 0.2s ease-in-out;
         }
 
-        @media (min-width: 768px) {
-          .menu-toggle {
-            display: none;
-          }
-
-          nav {
-            margin-top: 0;
-            flex-direction: row;
-          }
+        .nav-link:hover {
+          background: rgba(255, 255, 255, 0.15);
         }
 
-        @media (max-width: 767px) {
-          nav {
-            display: ${menuOpen ? 'flex' : 'none'};
-            flex-direction: column;
-            gap: 0.75rem;
-            padding-top: 0.5rem;
-          }
+        .nav-link.active {
+          background-color: white;
+          color: #0070f3;
+          font-weight: bold;
         }
       `}</style>
     </header>
