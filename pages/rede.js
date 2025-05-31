@@ -1,3 +1,4 @@
+// pages/rede.js
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
@@ -15,36 +16,36 @@ export default function RedePage() {
 
       const userId = session.user.id
 
-      // Buscar indicados diretos
+      // 1) Buscar indicados diretos: referrer_id = userId
       const { data: nivel1, error: erro1 } = await supabase
         .from('profiles')
         .select('*')
-        .eq('indicador', userId)
+        .eq('referrer_id', userId)       // aqui mudou de "indicador" para "referrer_id"
+        .order('created_at', { ascending: false })
 
       if (erro1) {
         setError('Erro ao buscar indicados diretos.')
         setLoading(false)
         return
       }
-
       setDiretos(nivel1 || [])
 
-      // Buscar indicados dos indicados (nível 2)
-      const idsNivel1 = nivel1.map(u => u.id)
+      // 2) Buscar indicados dos indicados (nível 2)
+      const idsNivel1 = nivel1.map((u) => u.id)
       let nivel2 = []
 
       if (idsNivel1.length > 0) {
         const { data: resultadoNivel2, error: erro2 } = await supabase
           .from('profiles')
           .select('*')
-          .in('indicador', idsNivel1)
+          .in('referrer_id', idsNivel1)   // também usa "referrer_id" para filtrar
+          .order('created_at', { ascending: false })
 
         if (erro2) {
           setError('Erro ao buscar indicados indiretos.')
           setLoading(false)
           return
         }
-
         nivel2 = resultadoNivel2
       }
 
@@ -66,18 +67,26 @@ export default function RedePage() {
         {!loading && !error && (
           <>
             <h2>Indicados Diretos ({diretos.length})</h2>
-            <ul>
-              {diretos.map(user => (
-                <li key={user.id}>{user.nome || user.email}</li>
-              ))}
-            </ul>
+            {diretos.length > 0 ? (
+              <ul>
+                {diretos.map((user) => (
+                  <li key={user.id}>{user.name || user.email}</li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ textAlign: 'center' }}>Você ainda não possui indicados diretos.</p>
+            )}
 
             <h2>Indicados Indiretos ({indiretos.length})</h2>
-            <ul>
-              {indiretos.map(user => (
-                <li key={user.id}>{user.nome || user.email}</li>
-              ))}
-            </ul>
+            {indiretos.length > 0 ? (
+              <ul>
+                {indiretos.map((user) => (
+                  <li key={user.id}>{user.name || user.email}</li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ textAlign: 'center' }}>Você ainda não possui indicados indiretos.</p>
+            )}
           </>
         )}
 
