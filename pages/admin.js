@@ -25,10 +25,10 @@ export default function AdminPage() {
           return
         }
 
-        // 2) Carrega todas as transações (ajustado para campos corretos)
+        // 2) Carrega todas as transações (usando 'type' e 'amount')
         const { data: txData, error: txError } = await supabase
           .from('transactions')
-          .select('id, user_id, tipo, valor, status, data')
+          .select('id, user_id, type, amount, status, data')
           .order('data', { ascending: false })
 
         if (txError) throw txError
@@ -41,7 +41,7 @@ export default function AdminPage() {
         )
 
         if (uniqueUserIds.length > 0) {
-          // 4) Busca perfis correspondentes
+          // 4) Busca perfis correspondentes (campo 'name')
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('id, name, email')
@@ -181,10 +181,10 @@ export default function AdminPage() {
                       <tr key={t.id}>
                         <td>{nomeUsuario}</td>
                         <td>{dataFormatada}</td>
-                        <td>{t.tipo}</td>
-                        <td>{formatUSD(t.valor)}</td>
+                        <td>{t.type}</td>
+                        <td>{formatUSD(t.amount)}</td>
                         <td>
-                          <span className={`status ${t.status}`}>
+                          <span className={`status {t.status}`}>
                             {t.status}
                           </span>
                         </td>
@@ -202,7 +202,8 @@ export default function AdminPage() {
                               </button>
                               <button
                                 disabled={updatingId === t.id}
-                                onClick={() => updateStatus(t.id, 'rejected')}>
+                                onClick={() => updateStatus(t.id, 'rejected')}
+                              >
                                 {updatingId === t.id && (
                                   <span className="loader" />
                                 )}
