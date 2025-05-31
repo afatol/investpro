@@ -1,57 +1,92 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 export default function RendimentosPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return window.location.href = '/login'
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) return window.location.href = '/login'
 
-      const { data, error } = await supabase
+      const userId = session.user?.id
+      if (!userId) return setError('Usuário não autenticado.')
+
+      const { data: rendimentos, error } = await supabase
         .from('rendimentos')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', userId)
         .order('data', { ascending: false })
 
-      if (!error) setData(data)
+      if (error) {
+        setError('Erro ao buscar dados.')
+      } else {
+        setData(rendimentos || [])
+      }
+
       setLoading(false)
     }
 
     fetchData()
   }, [])
 
+  const chartData = data.map(item => ({
+    name: new Date(item.data).toLocaleDateString(),
+    valor: item.valor
+  })).reverse()
+
   return (
     <Layout>
       <div className="rendimentos">
         <h1>Rendimentos</h1>
 
-        {loading ? (
-          <p>Carregando...</p>
-        ) : (
-          <div className="transacoes">
-            <table>
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Valor (USD)</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((item, i) => (
-                  <tr key={i}>
-                    <td>{new Date(item.data).toLocaleDateString()}</td>
-                    <td>{item.valor?.toFixed(2)}</td>
-                    <td className={`status ${item.status}`}>{item.status}</td>
+        {loading && <p>Carregando...</p>}
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+
+        {!loading && !error && (
+          <>
+            <div className="grafico">
+              <h2>Gráfico de Rendimentos</h2>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartData}>
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="valor" fill="#4CAF50" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p style={{ textAlign: 'center' }}>Sem dados para exibir no gráfico.</p>
+              )}
+            </div>
+
+            <div className="transacoes">
+              <h2>Histórico</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Valor (USD)</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {data.map((item, i) => (
+                    <tr key={i}>
+                      <td>{new Date(item.data).toLocaleDateString()}</td>
+                      <td>{item.valor?.toFixed(2)}</td>
+                      <td className={`status ${item.status || ''}`}>{item.status || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -65,43 +100,6 @@ export default function RendimentosPage() {
         h1, h2 {
           text-align: center;
           margin-bottom: 1rem;
-        }
-
-        .filtros {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 1rem;
-          justify-content: center;
-          align-items: flex-end;
-          margin-bottom: 2rem;
-        }
-
-        .filtro-group {
-          display: flex;
-          flex-direction: column;
-        }
-
-        select {
-          padding: 0.5rem;
-          border: 1px solid #ccc;
-          border-radius: 6px;
-          font-size: 1rem;
-          min-width: 150px;
-        }
-
-        button {
-          padding: 0.6rem 1.2rem;
-          background-color: #4CAF50;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-size: 1rem;
-          cursor: pointer;
-          margin-top: auto;
-        }
-
-        button:hover {
-          background-color: #45a049;
         }
 
         .grafico {
@@ -151,15 +149,6 @@ export default function RendimentosPage() {
         }
 
         @media (max-width: 600px) {
-          .filtros {
-            flex-direction: column;
-            align-items: stretch;
-          }
-
-          select, button {
-            width: 100%;
-          }
-
           table {
             font-size: 0.9rem;
           }
