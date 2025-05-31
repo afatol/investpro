@@ -23,7 +23,6 @@ export default function Layout({ children }) {
       <nav className="top-nav">
         <div className="nav-container">
           <Link href="/">
-            {/* Use o logo como imagem abaixo ou deixe o texto como fallback */}
             <div className="logo">
               <Image
                 src="/logo.png"
@@ -49,9 +48,7 @@ export default function Layout({ children }) {
         </div>
       </nav>
 
-      <main className="page-content" key="layout-main">
-        {children}
-      </main>
+      <main className="page-content">{children}</main>
 
       <footer className="site-footer">
         © InvestPro 2025 — Todos os direitos reservados
@@ -65,21 +62,22 @@ export default function Layout({ children }) {
         }
 
         .top-nav {
-          background-color: #0070f3;
+          background-color: #0a0a23;
           color: white;
-          padding: 0.8rem 0;
+          padding: 0.8rem 1.2rem;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
           position: sticky;
           top: 0;
           z-index: 1000;
         }
 
         .nav-container {
-          max-width: 100%;
-          margin: 0 auto;
           display: flex;
-          flex-direction: column;
-          gap: 0.4rem;
-          padding: 0 1rem;
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 0.5rem;
         }
 
         .logo {
@@ -90,15 +88,10 @@ export default function Layout({ children }) {
 
         .nav-links {
           display: flex;
-          flex-wrap: nowrap;
-          overflow-x: auto;
-          gap: 0.8rem;
-          white-space: nowrap;
-          scrollbar-width: none;
-        }
-
-        .nav-links::-webkit-scrollbar {
-          display: none;
+          flex-wrap: wrap;
+          gap: 1rem;
+          justify-content: flex-end;
+          flex: 1;
         }
 
         .nav-link {
@@ -108,16 +101,15 @@ export default function Layout({ children }) {
           padding: 0.4rem 0.8rem;
           border-radius: 6px;
           transition: background-color 0.3s;
-          flex: 0 0 auto;
         }
 
         .nav-link:hover {
-          background-color: rgba(255, 255, 255, 0.2);
+          background-color: rgba(255, 255, 255, 0.15);
         }
 
         .nav-link.active {
           background-color: white;
-          color: #0070f3;
+          color: #0a0a23;
           font-weight: bold;
         }
 
@@ -134,13 +126,25 @@ export default function Layout({ children }) {
           font-size: 0.9rem;
           padding: 1rem;
           border-top: 1px solid #eee;
-          background-color: #fafafa;
+          background-color: #f5f5f5;
         }
 
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
+          .nav-container {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .nav-links {
+            flex-direction: column;
+            align-items: flex-start;
+            width: 100%;
+            padding-top: 0.5rem;
+          }
+
           .nav-link {
-            font-size: 0.9rem;
-            padding: 0.3rem 0.6rem;
+            padding: 0.6rem 0.4rem;
+            width: 100%;
           }
 
           .logo img {
