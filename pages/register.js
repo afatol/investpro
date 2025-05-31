@@ -1,67 +1,73 @@
-// pages/api/register.js
-import { supabase } from '../../lib/supabaseClient'
+// pages/register.js
+import { useState } from 'react'
+import Link from 'next/link'
+import Nav from '../components/Nav'
 
-/**
- * Gera um código único começando com "IP" seguido de 8 dígitos
- */
-function generateReferralCode() {
-  const random = Math.floor(10000000 + Math.random() * 90000000)
-  return `IP${random}` // Ex: IP12345678
-}
+export default function Register() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [referralCode, setReferralCode] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
-export default async function handler(req, res) {
-  const { email, password, referral_code } = req.body
+  const handleRegister = async (e) => {
+    e.preventDefault()
+    setMessage('')
+    setError('')
 
-  // Registrar usuário no Supabase Auth
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        // Adiciona o código de indicação ao cadastro
-        referral_code: referral_code || null
-      }
-    }
-  })
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, referral_code: referralCode })
+    })
 
-  if (error) {
-    return res.status(400).json({ error: error.message })
-  }
+    const result = await res.json()
 
-  const userId = data.user.id
-  const generatedReferralCode = generateReferralCode()
-
-  // Salvar dados no perfil do usuário
-  let updateData = {
-    id: userId,
-    referral_code: generatedReferralCode // Código único gerado automaticamente
-  }
-
-  // Se houver código de afiliado, vincule ao referrer
-  if (referral_code) {
-    const { data: referrer } = await supabase
-      .from('profiles')
-      .select('id, referrals_count')
-      .eq('referral_code', referral_code)
-      .single()
-
-    if (referrer) {
-      updateData.referrer_id = referrer.id
-
-      // Atualiza contagem de indicações do afiliado
-      await supabase
-        .from('profiles')
-        .update({ referrals_count: referrer.referrals_count + 1 })
-        .eq('id', referrer.id)
+    if (res.ok) {
+      setMessage(`Conta criada com sucesso! Seu código: ${result.referralCode}`)
+      setEmail('')
+      setPassword('')
+      setReferralCode('')
+    } else {
+      setError(result.error || 'Erro ao registrar.')
     }
   }
 
-  // Insere novo usuário na tabela profiles
-  await supabase.from('profiles').insert(updateData)
+  return (
+    <div className="container">
+      <Nav />
+      <h1>Cadastro</h1>
 
-  // Resposta final
-  res.status(200).json({
-    success: true,
-    referralCode: generatedReferralCode
-  })
+      {message && <p style={{ color: 'green' }}>{message}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <form onSubmit={handleRegister}>
+        <input
+          type="email"
+          placeholder="Seu email"
+          required
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Senha"
+          required
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Código de indicação (opcional)"
+          value={referralCode}
+          onChange={e => setReferralCode(e.target.value)}
+        />
+        <button className="btn" type="submit">Cadastrar</button>
+      </form>
+
+      <p style={{ marginTop: '1rem', textAlign: 'center' }}>
+        <Link href="/login">Já tem conta? Faça login</Link>
+      </p>
+    </div>
+  )
 }
