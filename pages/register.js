@@ -1,93 +1,97 @@
 // pages/register.js
+
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabaseClient'
-import Layout from '../components/Layout'   // <-- alterado aqui
+import Layout from '../components/Layout'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [name, setName] = useState('')
+
+  // Estados para capturar entradas do usuário
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [referralCode, setReferralCode] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
 
-  const handleRegister = async (e) => {
+  // Função que será chamada ao submeter o formulário
+  const handleSignUp = async (e) => {
     e.preventDefault()
-    setError('')
-    setSuccessMessage('')
-    setLoading(true)
+    setErrorMsg('')
 
-    if (!email || !password) {
-      setError('Email e senha são obrigatórios.')
-      setLoading(false)
+    // 1) Validações básicas de front-end
+    if (!email || !password || !confirmPassword) {
+      setErrorMsg('Preencha todos os campos obrigatórios.')
+      return
+    }
+    if (password !== confirmPassword) {
+      setErrorMsg('Senha e confirmação não coincidem.')
       return
     }
     if (password.length < 6) {
-      setError('A senha precisa ter no mínimo 6 caracteres.')
-      setLoading(false)
+      setErrorMsg('A senha deve ter pelo menos 6 caracteres.')
       return
     }
 
+    setLoading(true)
+
     try {
-      const { user, error: signUpError } = await supabase.auth.signUp(
-        { email, password },
-        { data: { name } }
-      )
+      // 2) Tenta registrar o usuário no Supabase Auth
+      //    Se você tiver um “profiles” ou outra tabela relacionada que é populada via TRIGGER no banco,
+      //    basta chamar auth.signUp e o trigger deve criar o registro de profile automaticamente.
+      //    Caso não haja trigger, você precisará inserir manualmente na tabela de perfis após o signUp.
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password
+      }, {
+        data: {
+          // Exemplo: se você quiser salvar o código de indicação como metadado de usuário:
+          referral_code: referralCode.trim() || null
+        }
+      })
+
       if (signUpError) {
+        // Erro genérico do Supabase (por exemplo, email já cadastrado, regras de RLS, etc.)
         throw signUpError
       }
-      const userId = user?.id
-      if (!userId) {
-        throw new Error('Não foi possível obter o ID do usuário.')
+
+      // 3) Se sua arquitetura exigir que você crie manualmente um registro em 'profiles',
+      //    descomente o bloco abaixo e adapte para a estrutura da sua tabela.
+
+      // const user = signUpData.user
+      // const { error: profileError } = await supabase
+      //   .from('profiles')
+      //   .insert([
+      //     {
+      //       id: user.id,
+      //       email: user.email,
+      //       referral_code: referralCode.trim() || null,
+      //       created_at: new Date()
+      //       // ...outros campos obrigatórios da sua tabela de perfis
+      //     }
+      //   ])
+      // if (profileError) {
+      //   // Se houve erro ao criar profile, você pode desfazer o cadastro ou apenas mostrar a mensagem
+      //   throw profileError
+      // }
+
+      // 4) Se chegou aqui sem erros, redireciona para uma página de “confirmação” ou “login”
+      //    Você pode exibir uma mensagem informando que um email de confirmação (se aplicável) foi enviado.
+      router.push('/check-email') // ou '/login', conforme seu fluxo
+
+    } catch (error) {
+      console.error('Erro ao cadastrar usuário:', error.message)
+      // Exibe a mensagem de erro apropriada
+      if (error.status === 500) {
+        setErrorMsg(
+          'Houve um problema no servidor ao salvar o usuário. ' +
+            'Verifique as configurações do banco de dados ou tente novamente mais tarde.'
+        )
+      } else {
+        setErrorMsg(error.message)
       }
-
-      const generatedReferralCode = 'IP' + Math.floor(Math.random() * 10000000)
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: userId,
-            name,
-            referral_code: generatedReferralCode,
-            referrals_count: 0,
-            referrer_id: referralCode || null
-          }
-        ])
-      if (profileError) {
-        await supabase.auth.api.deleteUser(userId, {
-          shouldReauthenticate: false
-        })
-        throw profileError
-      }
-
-      if (referralCode) {
-        const { data: refProfile, error: findRefError } = await supabase
-          .from('profiles')
-          .select('id, referrals_count')
-          .eq('referral_code', referralCode)
-          .single()
-
-        if (!findRefError && refProfile) {
-          await supabase
-            .from('profiles')
-            .update({ referrals_count: refProfile.referrals_count + 1 })
-            .eq('id', refProfile.id)
-        }
-      }
-
-      setSuccessMessage(
-        'Cadastro realizado com sucesso! Redirecionando para o dashboard…'
-      )
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 1500)
-    } catch (err) {
-      console.error(err)
-      setError(err.message || 'Erro inesperado ao registrar usuário.')
     } finally {
       setLoading(false)
     }
@@ -95,135 +99,116 @@ export default function RegisterPage() {
 
   return (
     <Layout>
-      <div className="register-container">
-        <h1>Cadastre-se no InvestPro</h1>
+      <div style={{ maxWidth: '400px', margin: '2rem auto', padding: '1.5rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+        <h2 style={{ marginBottom: '1rem', textAlign: 'center' }}>Cadastro de Usuário</h2>
 
-        {error && <p className="message error">{error}</p>}
-        {successMessage && <p className="message success">{successMessage}</p>}
+        {errorMsg && (
+          <div
+            style={{
+              backgroundColor: '#ffe5e5',
+              color: '#a00',
+              padding: '0.75rem',
+              borderRadius: '4px',
+              marginBottom: '1rem',
+              textAlign: 'center'
+            }}
+          >
+            {errorMsg}
+          </div>
+        )}
 
-        <form onSubmit={handleRegister} className="register-form">
-          <label htmlFor="name">Nome (opcional):</label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Seu nome"
-          />
-
-          <label htmlFor="email">Email:</label>
+        <form onSubmit={handleSignUp}>
+          <label htmlFor="email" style={{ display: 'block', marginBottom: '0.25rem' }}>Email<span style={{ color: 'red' }}>*</span>:</label>
           <input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="seu@email.com"
+            placeholder="seuemail@exemplo.com"
             required
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              marginBottom: '1rem',
+              border: '1px solid #ccc',
+              borderRadius: '4px'
+            }}
           />
 
-          <label htmlFor="password">
-            Senha (mínimo 6 caracteres):
-          </label>
+          <label htmlFor="password" style={{ display: 'block', marginBottom: '0.25rem' }}>Senha<span style={{ color: 'red' }}>*</span>:</label>
           <input
             id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="********"
-            minLength={6}
+            placeholder="mínimo 6 caracteres"
             required
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              marginBottom: '1rem',
+              border: '1px solid #ccc',
+              borderRadius: '4px'
+            }}
           />
 
-          <label htmlFor="referral">Código de Indicação (opcional):</label>
+          <label htmlFor="confirmPassword" style={{ display: 'block', marginBottom: '0.25rem' }}>Confirmar Senha<span style={{ color: 'red' }}>*</span>:</label>
           <input
-            id="referral"
+            id="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="digite novamente a senha"
+            required
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              marginBottom: '1rem',
+              border: '1px solid #ccc',
+              borderRadius: '4px'
+            }}
+          />
+
+          <label htmlFor="referralCode" style={{ display: 'block', marginBottom: '0.25rem' }}>Código de Indicação (opcional):</label>
+          <input
+            id="referralCode"
             type="text"
             value={referralCode}
             onChange={(e) => setReferralCode(e.target.value)}
-            placeholder="Digite o código de quem indicou"
+            placeholder="se tiver um código, informe aqui"
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              marginBottom: '1.5rem',
+              border: '1px solid #ccc',
+              borderRadius: '4px'
+            }}
           />
 
-          <button type="submit" disabled={loading}>
-            {loading ? 'Cadastrando...' : 'Cadastrar'}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              backgroundColor: '#0069d9',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? 'Enviando...' : 'Cadastrar'}
           </button>
         </form>
+
+        <p style={{ marginTop: '1rem', textAlign: 'center' }}>
+          Já possui conta?{' '}
+          <a href="/login" style={{ color: '#0069d9', textDecoration: 'underline' }}>
+            Fazer login
+          </a>
+        </p>
       </div>
-
-      <style jsx>{`
-        .register-container {
-          max-width: 400px;
-          margin: auto;
-          background: white;
-          padding: 2rem 1rem;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        h1 {
-          text-align: center;
-          margin-bottom: 1.5rem;
-          font-size: 1.5rem;
-        }
-
-        .message {
-          padding: 0.75rem 1rem;
-          border-radius: 6px;
-          margin-bottom: 1rem;
-          text-align: center;
-        }
-        .message.error {
-          background-color: #fde2e2;
-          color: #b00020;
-        }
-        .message.success {
-          background-color: #e2f7e2;
-          color: #155724;
-        }
-
-        .register-form {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        label {
-          font-weight: 600;
-        }
-
-        input {
-          padding: 0.6rem;
-          font-size: 1rem;
-          border: 1px solid #ccc;
-          border-radius: 6px;
-        }
-
-        button {
-          margin-top: 1rem;
-          padding: 0.8rem;
-          font-size: 1rem;
-          background-color: #0070f3;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: background-color 0.2s ease;
-        }
-
-        button:hover {
-          background-color: #005bb5;
-        }
-
-        button:disabled {
-          background-color: #999;
-          cursor: not-allowed;
-        }
-
-        @media (max-width: 480px) {
-          .register-container {
-            padding: 1.5rem 1rem;
-          }
-        }
-      `}</style>
     </Layout>
   )
 }
