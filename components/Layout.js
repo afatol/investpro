@@ -7,14 +7,23 @@ export default function Layout({ children }) {
   const navItems = [
     { label: 'Dashboard', href: '/dashboard' },
     { label: 'Transações', href: '/transacoes' },
-    { label: 'Rendimentos', href: '/rendimentos' }
+    { label: 'Rendimentos', href: '/rendimentos' },
+    { label: 'Depósitos', href: '/deposit' },
+    { label: 'Saques', href: '/withdraw' },
+    { label: 'Minha Rede', href: '/rede' },
+    { label: 'Planos', href: '/planos' },
+    { label: 'Manual', href: '/manual' },
+    { label: 'Sobre', href: '/sobre' },
+    { label: 'Sair', href: '/logout' }
   ]
 
   return (
     <div className="layout-wrapper">
       <nav className="top-nav">
         <div className="nav-container">
-          <span className="logo">InvestPro</span>
+          <Link href="/">
+            <span className="logo">InvestPro</span>
+          </Link>
           <div className="nav-links">
             {navItems.map(item => (
               <Link
@@ -54,7 +63,7 @@ export default function Layout({ children }) {
         }
 
         .nav-container {
-          max-width: 1024px;
+          max-width: 100%;
           margin: 0 auto;
           display: flex;
           flex-direction: column;
@@ -63,21 +72,22 @@ export default function Layout({ children }) {
         }
 
         .logo {
-          font-size: 1.4rem;
+          font-size: 1.5rem;
           font-weight: bold;
+          cursor: pointer;
         }
 
         .nav-links {
           display: flex;
-          gap: 1rem;
+          flex-wrap: nowrap;
           overflow-x: auto;
+          gap: 0.8rem;
           white-space: nowrap;
-          padding-bottom: 0.3rem;
-          scrollbar-width: none; /* Firefox */
+          scrollbar-width: none;
         }
 
         .nav-links::-webkit-scrollbar {
-          display: none; /* Chrome */
+          display: none;
         }
 
         .nav-link {
@@ -103,6 +113,9 @@ export default function Layout({ children }) {
         .page-content {
           flex-grow: 1;
           padding: 2rem 1rem;
+          max-width: 1200px;
+          margin: auto;
+          width: 100%;
         }
 
         .site-footer {
@@ -114,12 +127,13 @@ export default function Layout({ children }) {
         }
 
         @media (max-width: 640px) {
-          .nav-container {
-            gap: 0.2rem;
+          .nav-link {
+            font-size: 0.92rem;
+            padding: 0.3rem 0.6rem;
           }
 
-          .nav-link {
-            font-size: 0.95rem;
+          .logo {
+            font-size: 1.2rem;
           }
         }
       `}</style>
