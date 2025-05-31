@@ -1,7 +1,18 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid
+} from 'recharts'
+
+const formatUSD = (value) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 
 export default function RendimentosPage() {
   const [transacoes, setTransacoes] = useState([])
@@ -36,7 +47,7 @@ export default function RendimentosPage() {
   const chartData = transacoes
     .filter(t => t.status === 'approved')
     .map(t => ({
-      name: new Date(t.data).toLocaleDateString(),
+      name: new Date(t.data).toLocaleDateString('pt-BR'),
       valor: parseFloat(t.amount || 0)
     }))
     .reverse()
@@ -54,12 +65,24 @@ export default function RendimentosPage() {
             <div className="grafico">
               <h2>Gráfico de Rendimentos Aprovados</h2>
               {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="valor" fill="#4CAF50" />
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 10, right: 10, left: -10, bottom: 30 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 12 }}
+                      angle={-30}
+                      textAnchor="end"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => formatUSD(value)}
+                    />
+                    <Tooltip formatter={(value) => formatUSD(value)} />
+                    <Bar dataKey="valor" fill="#4CAF50" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -81,9 +104,9 @@ export default function RendimentosPage() {
                 <tbody>
                   {transacoes.map((t, i) => (
                     <tr key={i}>
-                      <td>{new Date(t.data).toLocaleDateString()}</td>
+                      <td>{new Date(t.data).toLocaleDateString('pt-BR')}</td>
                       <td>{t.type}</td>
-                      <td>{parseFloat(t.amount).toFixed(2)}</td>
+                      <td>{formatUSD(parseFloat(t.amount))}</td>
                       <td className={`status ${t.status}`}>{t.status}</td>
                     </tr>
                   ))}
@@ -163,10 +186,13 @@ export default function RendimentosPage() {
             table {
               font-size: 0.9rem;
             }
+
+            .grafico {
+              margin-bottom: 2rem;
+            }
           }
         `}</style>
       </div>
     </Layout>
   )
 }
-
