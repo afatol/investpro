@@ -25,10 +25,10 @@ export default function AdminPage() {
           return
         }
 
-        // 2) Carrega todas as transações
+        // 2) Carrega todas as transações (ajustado para campos corretos)
         const { data: txData, error: txError } = await supabase
           .from('transactions')
-          .select('id, user_id, type, amount, status, data')
+          .select('id, user_id, tipo, valor, status, data')
           .order('data', { ascending: false })
 
         if (txError) throw txError
@@ -44,7 +44,7 @@ export default function AdminPage() {
           // 4) Busca perfis correspondentes
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, nome, email')
+            .select('id, name, email')
             .in('id', uniqueUserIds)
 
           if (profilesError) throw profilesError
@@ -52,7 +52,7 @@ export default function AdminPage() {
           // 5) Monta mapa user_id → nome
           const map = {}
           profilesData.forEach((p) => {
-            map[p.id] = { nome: p.nome || p.email || '—', email: p.email }
+            map[p.id] = { nome: p.name || p.email || '—', email: p.email }
           })
           setProfilesMap(map)
         }
@@ -181,8 +181,8 @@ export default function AdminPage() {
                       <tr key={t.id}>
                         <td>{nomeUsuario}</td>
                         <td>{dataFormatada}</td>
-                        <td>{t.type}</td>
-                        <td>{formatUSD(t.amount)}</td>
+                        <td>{t.tipo}</td>
+                        <td>{formatUSD(t.valor)}</td>
                         <td>
                           <span className={`status ${t.status}`}>
                             {t.status}
@@ -202,8 +202,7 @@ export default function AdminPage() {
                               </button>
                               <button
                                 disabled={updatingId === t.id}
-                                onClick={() => updateStatus(t.id, 'rejected')}
-                              >
+                                onClick={() => updateStatus(t.id, 'rejected')}>
                                 {updatingId === t.id && (
                                   <span className="loader" />
                                 )}
