@@ -32,10 +32,7 @@ export default function DepositPage() {
     }
 
     const filePath = `${session.user.id}_${Date.now()}_${file.name}`
-    const { error: uploadError } = await supabase
-      .storage
-      .from('proofs')
-      .upload(filePath, file)
+    const { error: uploadError } = await supabase.storage.from('proofs').upload(filePath, file)
 
     if (uploadError) {
       setError(`Erro no upload: ${uploadError.message}`)
@@ -43,20 +40,15 @@ export default function DepositPage() {
       return
     }
 
-    const { data: { publicUrl } } = supabase
-      .storage
-      .from('proofs')
-      .getPublicUrl(filePath)
+    const { data: { publicUrl } } = supabase.storage.from('proofs').getPublicUrl(filePath)
 
-    const { error: insertError } = await supabase
-      .from('transactions')
-      .insert([{
-        user_id: session.user.id,
-        amount: parseFloat(amount),
-        type: 'deposit',
-        proof_url: publicUrl,
-        status: 'pending'
-      }])
+    const { error: insertError } = await supabase.from('transactions').insert([{
+      user_id: session.user.id,
+      amount: parseFloat(amount),
+      type: 'deposit',
+      proof_url: publicUrl,
+      status: 'pending'
+    }])
 
     if (insertError) {
       setError(`Erro ao registrar transação: ${insertError.message}`)
@@ -69,27 +61,27 @@ export default function DepositPage() {
 
   return (
     <Layout>
-      <div className="deposit-container">
-        <h1>Depositar</h1>
+      <div className="deposit-page">
+        <h1>Realizar Depósito</h1>
 
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error-msg">{error}</p>}
 
-        <form onSubmit={handleSubmit} className="form-deposit">
-          <label htmlFor="amount">Valor do depósito (USD):</label>
+        <form onSubmit={handleSubmit} className="deposit-form">
+          <label htmlFor="amount">Valor (USD):</label>
           <input
-            id="amount"
             type="number"
+            id="amount"
             step="0.01"
-            placeholder="Ex: 100.00"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            placeholder="Ex: 100.00"
             required
           />
 
           <label htmlFor="proof">Comprovante (jpg, png ou pdf):</label>
           <input
-            id="proof"
             type="file"
+            id="proof"
             accept=".jpg,.jpeg,.png,.pdf"
             onChange={(e) => setFile(e.target.files[0])}
             required
@@ -102,18 +94,22 @@ export default function DepositPage() {
       </div>
 
       <style jsx>{`
-        .deposit-container {
-          max-width: 600px;
-          margin: auto;
-          padding: 2rem;
+        .deposit-page {
+          max-width: 540px;
+          margin: 2rem auto;
+          padding: 1.5rem;
+          background: #fff;
+          border-radius: 10px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
 
         h1 {
           text-align: center;
+          font-size: 1.6rem;
           margin-bottom: 1.5rem;
         }
 
-        .form-deposit {
+        .deposit-form {
           display: flex;
           flex-direction: column;
           gap: 1rem;
@@ -121,28 +117,30 @@ export default function DepositPage() {
 
         label {
           font-weight: 600;
+          margin-bottom: 0.2rem;
         }
 
         input[type="number"],
         input[type="file"] {
-          padding: 0.5rem;
+          padding: 0.6rem;
+          font-size: 1rem;
           border: 1px solid #ccc;
           border-radius: 6px;
-          font-size: 1rem;
         }
 
         button {
-          background-color: #1976D2;
+          padding: 0.75rem;
+          font-size: 1rem;
+          background-color: #0070f3;
           color: white;
           border: none;
-          padding: 0.75rem;
           border-radius: 6px;
           cursor: pointer;
-          font-size: 1rem;
+          transition: background-color 0.3s;
         }
 
         button:hover {
-          background-color: #135BA1;
+          background-color: #005bb5;
         }
 
         button:disabled {
@@ -150,16 +148,16 @@ export default function DepositPage() {
           cursor: not-allowed;
         }
 
-        .error {
-          color: #c00;
+        .error-msg {
+          color: #d00000;
           font-weight: bold;
           text-align: center;
-          margin-bottom: 1rem;
         }
 
-        @media (max-width: 500px) {
-          .deposit-container {
+        @media (max-width: 640px) {
+          .deposit-page {
             padding: 1rem;
+            margin: 1rem;
           }
         }
       `}</style>
