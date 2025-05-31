@@ -25,10 +25,10 @@ export default function DashboardPage() {
       const enrichedUser = profile ? { ...user, ...profile } : user
       setUser(enrichedUser)
 
-      // Buscar totais de depósitos e saques aprovados
+      // Buscar totais de transações aprovadas
       const { data: transacoes } = await supabase
         .from('transactions')
-        .select('type, amount')
+        .select('tipo, valor')
         .eq('user_id', user.id)
         .eq('status', 'approved')
 
@@ -36,13 +36,13 @@ export default function DashboardPage() {
       let saques = 0
       if (transacoes) {
         transacoes.forEach(t => {
-          const valor = parseFloat(t.amount)
-          if (t.type === 'depósito') depositos += valor
-          if (t.type === 'saque') saques += valor
+          const valor = parseFloat(t.valor)
+          if (t.tipo === 'depósito') depositos += valor
+          if (t.tipo === 'saque') saques += valor
         })
       }
 
-      // Buscar rendimentos aplicados (tabela nova)
+      // Buscar rendimentos aplicados
       const { data: rendimentos } = await supabase
         .from('rendimentos_aplicados')
         .select('valor')
@@ -103,7 +103,7 @@ export default function DashboardPage() {
           </section>
 
           <section className="card">
-            <h2>Navegação</h2>
+            <h2>Links Rápidos</h2>
             <Link href="/transacoes" className="link">Ver Transações</Link><br />
             <Link href="/rendimentos" className="link">Ver Rendimentos</Link>
           </section>
@@ -113,7 +113,7 @@ export default function DashboardPage() {
       <style jsx>{`
         .dashboard-container {
           padding: 1.5rem;
-          max-width: 960px;
+          max-width: 1024px;
           margin: auto;
         }
 
@@ -125,9 +125,9 @@ export default function DashboardPage() {
 
         .card-grid {
           display: flex;
-          gap: 1.5rem;
           flex-wrap: wrap;
           justify-content: center;
+          gap: 1.5rem;
         }
 
         .card {
@@ -136,7 +136,7 @@ export default function DashboardPage() {
           border-radius: 12px;
           padding: 1.5rem;
           width: 100%;
-          max-width: 380px;
+          max-width: 400px;
           box-shadow: 0 2px 6px rgba(0,0,0,0.06);
           text-align: center;
         }
@@ -146,12 +146,11 @@ export default function DashboardPage() {
           padding: 0.6rem 1.2rem;
           border-radius: 8px;
           font-weight: bold;
-          transition: background-color 0.3s;
-          display: inline-block;
-          text-decoration: none;
           background-color: #0070f3;
           color: white;
           border: none;
+          text-decoration: none;
+          display: inline-block;
         }
 
         button:hover, .link:hover {
