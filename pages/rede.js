@@ -5,8 +5,8 @@ import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
 
 export default function RedePage() {
-  const [nivel1, setNivel1] = useState([])    // array de indicados diretos
-  const [nivel2, setNivel2] = useState([])    // array de indicados dos indicados
+  const [diretos, setDiretos] = useState([])
+  const [indiretos, setIndiretos] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -15,46 +15,52 @@ export default function RedePage() {
       // 1) Verifica sessão
       const {
         data: { session },
-        error: sessionError
+        error: sessionError,
       } = await supabase.auth.getSession()
-
       if (sessionError || !session) {
         window.location.href = '/login'
         return
       }
+
       const userId = session.user.id
 
-      try {
-        // 2) Chama a função RPC criada no banco:
-        //    get_referrals_hierarchy(u uuid) => retorna linhas com (id, name, email, nivel)
-        const { data: rows, error: rpcError } = await supabase
-          .rpc('get_referrals_hierarchy', { u: userId })
+      // 2) Buscar indicados diretos (profiles.referrer_id = userId)
+      const { data: nivel1, error: erro1 } = await supabase
+        .from('profiles')
+        .select('id, name, email')       // só traz campos que existem
+        .eq('referrer_id', userId)
+        .order('data', { ascending: false })
 
-        if (rpcError) {
-          throw rpcError
-        }
-
-        // 3) Separe os resultados por nível
-        const lvl1 = []
-        const lvl2 = []
-        if (Array.isArray(rows)) {
-          rows.forEach((r) => {
-            if (r.nivel === 1) {
-              lvl1.push({ id: r.id, name: r.name, email: r.email })
-            } else if (r.nivel === 2) {
-              lvl2.push({ id: r.id, name: r.name, email: r.email })
-            }
-          })
-        }
-
-        setNivel1(lvl1)
-        setNivel2(lvl2)
-      } catch (err) {
-        console.error('Erro ao buscar rede (RPC):', err)
-        setError('Falha ao carregar sua rede de indicações.')
-      } finally {
+      if (erro1) {
+        setError('Erro ao buscar indicados diretos.')
+        console.error(erro1)
         setLoading(false)
+        return
       }
+      setDiretos(nivel1 || [])
+
+      // 3) Buscar indicados indiretos (ou seja, quem foi indicado pelos indicados diretos)
+      let nivel2 = []
+      const idsNivel1 = (nivel1 || []).map((u) => u.id)
+
+      if (idsNivel1.length > 0) {
+        const { data: resultadoNivel2, error: erro2 } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('referrer_id', idsNivel1)
+          .order('data', { ascending: false })
+
+        if (erro2) {
+          setError('Erro ao buscar indicados indiretos.')
+          console.error(erro2)
+          setLoading(false)
+          return
+        }
+        nivel2 = resultadoNivel2
+      }
+
+      setIndiretos(nivel2 || [])
+      setLoading(false)
     }
 
     fetchRede()
@@ -70,14 +76,11 @@ export default function RedePage() {
 
         {!loading && !error && (
           <>
-            {/* Exibe Nível 1 (Indicados Diretos) */}
-            <h2>Indicados Diretos (Nível 1) ({nivel1.length})</h2>
-            {nivel1.length > 0 ? (
+            <h2>Indicados Diretos ({diretos.length})</h2>
+            {diretos.length > 0 ? (
               <ul>
-                {nivel1.map((user) => (
-                  <li key={user.id}>
-                    {user.name || user.email}
-                  </li>
+                {diretos.map((user) => (
+                  <li key={user.id}>{user.name || user.email}</li>
                 ))}
               </ul>
             ) : (
@@ -86,14 +89,11 @@ export default function RedePage() {
               </p>
             )}
 
-            {/* Exibe Nível 2 (Indicados dos Indicados) */}
-            <h2>Indicados Indiretos (Nível 2) ({nivel2.length})</h2>
-            {nivel2.length > 0 ? (
+            <h2>Indicados Indiretos ({indiretos.length})</h2>
+            {indiretos.length > 0 ? (
               <ul>
-                {nivel2.map((user) => (
-                  <li key={user.id}>
-                    {user.name || user.email}
-                  </li>
+                {indiretos.map((user) => (
+                  <li key={user.id}>{user.name || user.email}</li>
                 ))}
               </ul>
             ) : (
@@ -111,7 +111,8 @@ export default function RedePage() {
             padding: 2rem 1rem;
           }
 
-          h1, h2 {
+          h1,
+          h2 {
             text-align: center;
             margin-bottom: 1rem;
           }
@@ -127,7 +128,7 @@ export default function RedePage() {
             margin: 0.5rem 0;
             padding: 0.75rem;
             border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
           }
 
           .error {
