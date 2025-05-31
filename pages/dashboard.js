@@ -14,7 +14,7 @@ export default function DashboardPage() {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('*', { head: false })
+        .select('*')
         .eq('id', user.id)
         .single()
 
@@ -48,8 +48,12 @@ export default function DashboardPage() {
           <section className="card">
             <h2>Indicações</h2>
             <p>Você indicou <strong>{user.referrals_count || 0}</strong> usuários.</p>
-            <button onClick={handleCopy} aria-label="Copiar código de indicação">
-              {copied ? 'Copiado!' : 'Copiar meu código de indicação'}
+            <p>
+              Seu código de indicação:{" "}
+              <span className="referral-code">{user.referral_code || '—'}</span>
+            </p>
+            <button onClick={handleCopy}>
+              {copied ? 'Copiado!' : 'Copiar código'}
             </button>
           </section>
 
@@ -89,6 +93,16 @@ export default function DashboardPage() {
           width: 100%;
           max-width: 420px;
           box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+
+        .referral-code {
+          display: inline-block;
+          background: #f0f0f0;
+          padding: 0.3rem 0.6rem;
+          border-radius: 6px;
+          font-family: monospace;
+          font-weight: bold;
+          color: #333;
         }
 
         button, .link {
