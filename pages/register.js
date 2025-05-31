@@ -42,7 +42,7 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // 2) Tenta criar no Auth do Supabase
+      // 2) Cria usuário no Auth do Supabase
       const {
         data: { user: newUser },
         error: signUpError,
@@ -50,6 +50,11 @@ export default function RegisterPage() {
         {
           email: email.trim(),
           password,
+        },
+        {
+          // Não precisamos enviar metadata para plan_id, pois isso virá depois
+          // Você pode incluir um campo metadata se tiver trigger no banco puxando de user_metadata
+          // Exemplo: user_metadata: { referral_code: referralCodeInput.trim() || null }
         }
       )
 
@@ -60,7 +65,7 @@ export default function RegisterPage() {
       const userId = newUser.id
       const generatedReferralCode = generateReferralCode()
 
-      // 3) Se o usuário inseriu um código de indicação, buscamos o profile do referer
+      // 3) Se o usuário informou um código de indicação, buscamos o profile do referer
       let referrer_id = null
       if (referralCodeInput.trim() !== '') {
         const { data: referrerRow, error: referrerErr } = await supabase
@@ -70,10 +75,10 @@ export default function RegisterPage() {
           .maybeSingle()
 
         if (referrerErr) {
-          console.error('Erro ao buscar referrerId:', referrerErr)
+          console.error('Erro ao buscar referer:', referrerErr.message)
         } else if (referrerRow) {
           referrer_id = referrerRow.id
-          // Incrementar o contador de referrals do quem indicou
+          // Incrementa o contador de referrals de quem indicou
           await supabase
             .from('profiles')
             .update({ referrals_count: (referrerRow.referrals_count || 0) + 1 })
@@ -81,7 +86,7 @@ export default function RegisterPage() {
         }
       }
 
-      // 4) Insere na tabela "profiles" com todos os campos necessários
+      // 4) Insere na tabela "profiles" (RLS permite INSERT se auth.uid() = id)
       const { error: profileError } = await supabase.from('profiles').insert({
         id: userId,
         name: null,
@@ -90,17 +95,14 @@ export default function RegisterPage() {
         referrals_count: 0,
         referrer_id,
         is_admin: false,
-        plan_id: null,
+        plan_id: null,       // inicialmente sem plano escolhido
         saldo: 0,
-        data: new Date().toISOString(),
+        data: new Date().toISOString(), // timestamp de criação
       })
 
       if (profileError) {
-        console.error('Erro ao salvar perfil:', profileError)
-        // Se falhou aqui, podemos tentar apagar o Auth user para não ficar “meio-cadastrado”
-        await supabase.auth.api.deleteUser(userId, {
-          // É preciso usar sua SERVICE ROLE KEY como cabeçalho ou instanciar cliente admin.
-        })
+        console.error('Erro ao salvar perfil:', profileError.message)
+        // **NÃO** tentamos apagar o usuário Auth aqui, pois o client não tem service-role key.
         throw new Error('Houve um problema ao salvar o perfil no banco.')
       }
 
