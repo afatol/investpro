@@ -6,13 +6,16 @@ export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [referralCode, setReferralCode] = useState('')
+  const [generatedCode, setGeneratedCode] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
   const handleRegister = async (e) => {
     e.preventDefault()
     setMessage('')
     setError('')
+    setGeneratedCode('')
 
     const res = await fetch('/api/register', {
       method: 'POST',
@@ -23,7 +26,8 @@ export default function Register() {
     const result = await res.json()
 
     if (res.ok) {
-      setMessage(`Conta criada com sucesso! Seu código: ${result.referralCode}`)
+      setGeneratedCode(result.referralCode)
+      setMessage('Conta criada com sucesso!')
       setEmail('')
       setPassword('')
       setReferralCode('')
@@ -32,13 +36,32 @@ export default function Register() {
     }
   }
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
     <>
       <Nav />
       <div className="form-container">
         <h1>Cadastro</h1>
 
-        {message && <p className="success">{message}</p>}
+        {message && (
+          <div className="success">
+            <p>{message}</p>
+            {generatedCode && (
+              <div className="code-box">
+                <strong>Seu código de indicação:</strong>
+                <p className="code">{generatedCode}</p>
+                <button className="copy-btn" onClick={handleCopy}>
+                  {copied ? 'Copiado!' : 'Copiar código'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {error && <p className="error">{error}</p>}
 
         <form onSubmit={handleRegister}>
@@ -72,7 +95,7 @@ export default function Register() {
 
       <style jsx>{`
         .form-container {
-          max-width: 400px;
+          max-width: 420px;
           margin: 3rem auto;
           padding: 2rem;
           background: #fff;
@@ -114,6 +137,15 @@ export default function Register() {
           background-color: #005bb5;
         }
 
+        .copy-btn {
+          margin-top: 0.5rem;
+          background-color: #28a745;
+        }
+
+        .copy-btn:hover {
+          background-color: #218838;
+        }
+
         .success {
           color: green;
           text-align: center;
@@ -129,6 +161,19 @@ export default function Register() {
         .login-link {
           text-align: center;
           margin-top: 1.5rem;
+        }
+
+        .code-box {
+          background: #f1f1f1;
+          padding: 1rem;
+          border-radius: 8px;
+          margin-top: 1rem;
+        }
+
+        .code {
+          font-size: 1.2rem;
+          font-family: monospace;
+          margin: 0.5rem 0;
         }
 
         @media (max-width: 480px) {
