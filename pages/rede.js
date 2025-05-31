@@ -1,56 +1,60 @@
 // pages/rede.js
+
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
 
 export default function RedePage() {
-  const [diretos, setDiretos] = useState([])
-  const [indiretos, setIndiretos] = useState([])
+  const [nivel1, setNivel1] = useState([])    // array de indicados diretos
+  const [nivel2, setNivel2] = useState([])    // array de indicados dos indicados
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     const fetchRede = async () => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError || !session) return window.location.href = '/login'
+      // 1) Verifica sessão
+      const {
+        data: { session },
+        error: sessionError
+      } = await supabase.auth.getSession()
 
-      const userId = session.user.id
-
-      // 1) Buscar indicados diretos: referrer_id = userId
-      const { data: nivel1, error: erro1 } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('referrer_id', userId)       // aqui mudou de "indicador" para "referrer_id"
-        .order('created_at', { ascending: false })
-
-      if (erro1) {
-        setError('Erro ao buscar indicados diretos.')
-        setLoading(false)
+      if (sessionError || !session) {
+        window.location.href = '/login'
         return
       }
-      setDiretos(nivel1 || [])
+      const userId = session.user.id
 
-      // 2) Buscar indicados dos indicados (nível 2)
-      const idsNivel1 = nivel1.map((u) => u.id)
-      let nivel2 = []
+      try {
+        // 2) Chama a função RPC criada no banco:
+        //    get_referrals_hierarchy(u uuid) => retorna linhas com (id, name, email, nivel)
+        const { data: rows, error: rpcError } = await supabase
+          .rpc('get_referrals_hierarchy', { u: userId })
 
-      if (idsNivel1.length > 0) {
-        const { data: resultadoNivel2, error: erro2 } = await supabase
-          .from('profiles')
-          .select('*')
-          .in('referrer_id', idsNivel1)   // também usa "referrer_id" para filtrar
-          .order('created_at', { ascending: false })
-
-        if (erro2) {
-          setError('Erro ao buscar indicados indiretos.')
-          setLoading(false)
-          return
+        if (rpcError) {
+          throw rpcError
         }
-        nivel2 = resultadoNivel2
-      }
 
-      setIndiretos(nivel2)
-      setLoading(false)
+        // 3) Separe os resultados por nível
+        const lvl1 = []
+        const lvl2 = []
+        if (Array.isArray(rows)) {
+          rows.forEach((r) => {
+            if (r.nivel === 1) {
+              lvl1.push({ id: r.id, name: r.name, email: r.email })
+            } else if (r.nivel === 2) {
+              lvl2.push({ id: r.id, name: r.name, email: r.email })
+            }
+          })
+        }
+
+        setNivel1(lvl1)
+        setNivel2(lvl2)
+      } catch (err) {
+        console.error('Erro ao buscar rede (RPC):', err)
+        setError('Falha ao carregar sua rede de indicações.')
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchRede()
@@ -66,26 +70,36 @@ export default function RedePage() {
 
         {!loading && !error && (
           <>
-            <h2>Indicados Diretos ({diretos.length})</h2>
-            {diretos.length > 0 ? (
+            {/* Exibe Nível 1 (Indicados Diretos) */}
+            <h2>Indicados Diretos (Nível 1) ({nivel1.length})</h2>
+            {nivel1.length > 0 ? (
               <ul>
-                {diretos.map((user) => (
-                  <li key={user.id}>{user.name || user.email}</li>
+                {nivel1.map((user) => (
+                  <li key={user.id}>
+                    {user.name || user.email}
+                  </li>
                 ))}
               </ul>
             ) : (
-              <p style={{ textAlign: 'center' }}>Você ainda não possui indicados diretos.</p>
+              <p style={{ textAlign: 'center' }}>
+                Você ainda não possui indicados diretos.
+              </p>
             )}
 
-            <h2>Indicados Indiretos ({indiretos.length})</h2>
-            {indiretos.length > 0 ? (
+            {/* Exibe Nível 2 (Indicados dos Indicados) */}
+            <h2>Indicados Indiretos (Nível 2) ({nivel2.length})</h2>
+            {nivel2.length > 0 ? (
               <ul>
-                {indiretos.map((user) => (
-                  <li key={user.id}>{user.name || user.email}</li>
+                {nivel2.map((user) => (
+                  <li key={user.id}>
+                    {user.name || user.email}
+                  </li>
                 ))}
               </ul>
             ) : (
-              <p style={{ textAlign: 'center' }}>Você ainda não possui indicados indiretos.</p>
+              <p style={{ textAlign: 'center' }}>
+                Você ainda não possui indicados indiretos.
+              </p>
             )}
           </>
         )}
