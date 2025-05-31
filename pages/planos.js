@@ -8,90 +8,73 @@ export default function Planos() {
   const [plans, setPlans] = useState([])
   const [profile, setProfile] = useState(null)
   const [selectedPlan, setSelectedPlan] = useState('')
-  const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
-    (async () => {
+    ;(async () => {
+      // 1) Verifica sessão
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession()
-      if (!session) {
+      if (sessionError || !session) {
         window.location.href = '/login'
         return
       }
 
-      // 1) Buscar lista de planos (apenas id e name, sem “frequency”)
+      // 2) Busca a lista de planos disponíveis
+      //    <-- Não existe mais a coluna “frequency”, apenas “id” e “name”
       const { data: plansList, error: plansErr } = await supabase
         .from('plans')
         .select('id, name')
+        .order('name', { ascending: true }) // opcional
       if (plansErr) {
+        setError('Não foi possível carregar os planos.')
         console.error(plansErr)
-      } else {
-        setPlans(plansList)
+        return
       }
+      setPlans(plansList)
 
-      // 2) Tentar ler a linha em “user_profiles” para este usuário
-      let { data: prof, error: profErr } = await supabase
-        .from('user_profiles')
-        .select('plan_id, invest_amount')
-        .eq('user_id', session.user.id)
-        .maybeSingle()
+      // 3) Busca o perfil do usuário (em “profiles”) para ler plan_id
+      const userId = session.user.id
+      const { data: prof, error: profErr } = await supabase
+        .from('profiles')
+        .select('plan_id')
+        .eq('id', userId)
+        .single()
 
       if (profErr) {
+        setError('Erro ao buscar perfil do usuário.')
         console.error(profErr)
+        return
       }
 
-      // 3) Se não existir, cria a linha vazia (com referral_code gerado)
-      if (!prof) {
-        const code = 'FX' + Math.random().toString(36).slice(2, 8).toUpperCase()
-        const { data: newProf, error: insertErr } = await supabase
-          .from('user_profiles')
-          .insert({
-            user_id: session.user.id,
-            referral_code: code,
-            invest_amount: null,
-            plan_id: null,
-          })
-          .single()
-
-        if (insertErr) {
-          console.error(insertErr)
-          setError('Falha ao criar perfil de investimento.')
-        } else {
-          prof = newProf
-        }
-      }
-
-      setProfile(prof)
-      setSelectedPlan(prof.plan_id)
-      setAmount(prof.invest_amount?.toString() || '')
+      setProfile(prof)                     // prof.plan_id pode ser null ou “PLANO_DIARIO” etc.
+      setSelectedPlan(prof.plan_id || '')  // define inicialmente para o que estiver no banco
     })()
   }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    // 4) Atualiza somente o plan_id em “profiles”
     const {
       data: { session },
     } = await supabase.auth.getSession()
-    if (!session) {
-      window.location.href = '/login'
-      return
-    }
+    if (!session) return
 
+    const userId = session.user.id
     const { error: upErr } = await supabase
-      .from('user_profiles')
-      .update({
-        plan_id: selectedPlan,
-        invest_amount: parseFloat(amount),
-      })
-      .eq('user_id', session.user.id)
+      .from('profiles')
+      .update({ plan_id: selectedPlan })
+      .eq('id', userId)
 
     if (upErr) {
-      setError(upErr.message)
+      setError('Falha ao atualizar o plano: ' + upErr.message)
+      console.error(upErr)
     } else {
-      alert('Plano e valor atualizados com sucesso!')
+      alert('Plano atualizado com sucesso!')
     }
   }
 
@@ -114,9 +97,7 @@ export default function Planos() {
             {plans.map((plan) => (
               <div
                 key={plan.id}
-                className={`plan-card ${
-                  selectedPlan === plan.id ? 'selected' : ''
-                }`}
+                className={`plan-card ${selectedPlan === plan.id ? 'selected' : ''}`}
                 onClick={() => setSelectedPlan(plan.id)}
               >
                 <h2>{plan.name}</h2>
@@ -125,18 +106,8 @@ export default function Planos() {
             ))}
           </div>
 
-          <label>
-            Valor a investir (USD):
-            <input
-              type="number"
-              value={amount}
-              required
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </label>
-
           <button className="btn" type="submit">
-            Salvar
+            Salvar Plano
           </button>
         </form>
       </div>
@@ -172,19 +143,6 @@ export default function Planos() {
         .plan-card.selected {
           border-color: #4caf50;
           background-color: #f0fff0;
-        }
-
-        label {
-          display: block;
-          margin: 1rem 0 0.5rem;
-          font-weight: bold;
-        }
-
-        input[type='number'] {
-          width: 100%;
-          padding: 0.5rem;
-          border-radius: 6px;
-          border: 1px solid #ccc;
         }
 
         .btn {
