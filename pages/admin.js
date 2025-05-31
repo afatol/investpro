@@ -11,6 +11,10 @@ export default function AdminPage() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [updatingId, setUpdatingId] = useState(null)
 
+  // Estados para "Aplicar Rendimentos"
+  const [userIsAdmin, setUserIsAdmin] = useState(false)
+  const [applyLoading, setApplyLoading] = useState(false)
+
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
@@ -25,7 +29,24 @@ export default function AdminPage() {
           return
         }
 
-        // 2) Carrega todas as transações (usando 'type' e 'amount')
+        // 1.1) Verifica se é admin
+        const {
+          data: perfil,
+          error: perfilErr
+        } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', session.user.id)
+          .single()
+
+        if (perfilErr || !perfil.is_admin) {
+          // Se não for admin, redireciona para dashboard ou outra página
+          window.location.href = '/dashboard'
+          return
+        }
+        setUserIsAdmin(true)
+
+        // 2) Carrega todas as transações (usando 'type', 'amount' e 'data')
         const { data: txData, error: txError } = await supabase
           .from('transactions')
           .select('id, user_id, type, amount, status, data')
@@ -115,6 +136,39 @@ export default function AdminPage() {
   const countApproved = transactions.filter((t) => t.status === 'approved').length
   const countRejected = transactions.filter((t) => t.status === 'rejected').length
 
+  // Função para aplicar rendimentos a todos os usuários via endpoint
+  const handleApplyYield = async () => {
+    if (!confirm('Tem certeza que deseja aplicar rendimentos para todos os usuários?')) {
+      return
+    }
+    setApplyLoading(true)
+    try {
+      // Obter o user_id do admin logado para o corpo da requisição
+      const {
+        data: { session }
+      } = await supabase.auth.getSession()
+      const userId = session.user.id
+
+      const response = await fetch('/api/apply-yield', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      })
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao aplicar rendimentos')
+      }
+
+      alert('Rendimentos aplicados com sucesso!')
+    } catch (err) {
+      console.error(err)
+      alert('Falha ao aplicar rendimentos: ' + err.message)
+    } finally {
+      setApplyLoading(false)
+    }
+  }
+
   return (
     <Layout>
       <div className="admin-container">
@@ -123,8 +177,23 @@ export default function AdminPage() {
         {loading && <p>Carregando dados do Admin...</p>}
         {error && <p className="error">{error}</p>}
 
-        {!loading && !error && (
+        {!loading && !error && userIsAdmin && (
           <>
+            {/* Seção: Aplicar Rendimentos Diários */}
+            <section className="apply-section">
+              <h2>Aplicar Rendimentos Diários</h2>
+              <p>
+                Clique abaixo para calcular e creditar o rendimento diário de todos os usuários (exceto administradores).
+              </p>
+              <button
+                onClick={handleApplyYield}
+                disabled={applyLoading}
+                className="apply-button"
+              >
+                {applyLoading ? 'Aplicando rendimento...' : 'Aplicar Rendimentos Agora'}
+              </button>
+            </section>
+
             {/* Seletor de filtro por status */}
             <div className="filtros">
               <button
@@ -233,6 +302,40 @@ export default function AdminPage() {
             text-align: center;
             margin-bottom: 2rem;
             font-size: 1.6rem;
+          }
+
+          /* Seção de aplicar rendimentos */
+          .apply-section {
+            margin-bottom: 2rem;
+            padding: 1.25rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background-color: #f8f9fa;
+          }
+          .apply-section h2 {
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+          }
+          .apply-section p {
+            margin-bottom: 1rem;
+            color: #555;
+          }
+          .apply-button {
+            padding: 0.75rem 1.5rem;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+          }
+          .apply-button:hover:not(:disabled) {
+            background-color: #0056b3;
+          }
+          .apply-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
           }
 
           /* Seletor de filtros */
