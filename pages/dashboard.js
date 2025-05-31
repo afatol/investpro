@@ -1,66 +1,104 @@
+// pages/dashboard.js
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/router'
+import Link from 'next/link'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
-import Link from 'next/link'
 
 const formatUSD = (value) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [user, setUser] = useState(null)
   const [totais, setTotais] = useState({ depositos: 0, saques: 0, rendimentos: 0 })
   const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const fetchUserAndDados = async () => {
-      const { data: { user }, error: sessionError } = await supabase.auth.getUser()
-      if (sessionError || !user) return
+      try {
+        // 1) Verifica a sessão do usuário
+        const {
+          data: { session },
+          error: sessionError
+        } = await supabase.auth.getSession()
 
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle()
+        if (sessionError || !session) {
+          // Se não estiver logado, redireciona para /login
+          router.replace('/login')
+          return
+        }
 
-      const enrichedUser = profile ? { ...user, ...profile } : user
-      setUser(enrichedUser)
+        const userId = session.user.id
 
-      // Buscar totais de transações aprovadas
-      const { data: transacoes } = await supabase
-        .from('transactions')
-        .select('tipo, valor')
-        .eq('user_id', user.id)
-        .eq('status', 'approved')
+        // 2) Busca perfil completo
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle()
 
-      let depositos = 0
-      let saques = 0
-      if (transacoes) {
-        transacoes.forEach(t => {
-          const valor = parseFloat(t.valor)
-          if (t.tipo === 'depósito') depositos += valor
-          if (t.tipo === 'saque') saques += valor
-        })
+        if (profileError) {
+          console.error('Erro ao buscar perfil:', profileError)
+          setError('Falha ao carregar perfil.')
+        } else {
+          const enrichedUser = { ...session.user, ...profile }
+          setUser(enrichedUser)
+        }
+
+        // 3) Busca totais de transações aprovadas (depósito/saque)
+        const { data: transacoes, error: txError } = await supabase
+          .from('transactions')
+          .select('tipo, valor')
+          .eq('user_id', userId)
+          .eq('status', 'approved')
+
+        if (txError) {
+          console.error('Erro ao buscar transações:', txError)
+          setError('Falha ao carregar transações.')
+        } else {
+          let depositos = 0
+          let saques = 0
+          if (transacoes) {
+            transacoes.forEach((t) => {
+              const valorNum = parseFloat(t.valor)
+              if (t.tipo === 'depósito') depositos += valorNum
+              if (t.tipo === 'saque') saques += valorNum
+            })
+          }
+          // 4) Busca rendimentos aplicados
+          const { data: rendimentos, error: rendError } = await supabase
+            .from('rendimentos_aplicados')
+            .select('valor')
+            .eq('user_id', userId)
+
+          if (rendError) {
+            console.error('Erro ao buscar rendimentos:', rendError)
+            setError((prev) => prev + ' Falha ao carregar rendimentos.')
+          } else {
+            const totalRendimentos = rendimentos
+              ? rendimentos.reduce((acc, r) => acc + parseFloat(r.valor), 0)
+              : 0
+
+            setTotais({
+              depositos,
+              saques,
+              rendimentos: totalRendimentos
+            })
+          }
+        }
+      } catch (err) {
+        console.error('Erro inesperado no dashboard:', err)
+        setError('Erro inesperado ao carregar dados.')
+      } finally {
+        setLoading(false)
       }
-
-      // Buscar rendimentos aplicados
-      const { data: rendimentos } = await supabase
-        .from('rendimentos_aplicados')
-        .select('valor')
-        .eq('user_id', user.id)
-
-      const totalRendimentos = rendimentos
-        ? rendimentos.reduce((acc, r) => acc + parseFloat(r.valor), 0)
-        : 0
-
-      setTotais({
-        depositos,
-        saques,
-        rendimentos: totalRendimentos
-      })
     }
 
     fetchUserAndDados()
-  }, [])
+  }, [router])
 
   const handleCopy = () => {
     if (user?.referral_code) {
@@ -70,7 +108,28 @@ export default function DashboardPage() {
     }
   }
 
-  if (!user) return <p style={{ textAlign: 'center' }}>Carregando...</p>
+  if (loading) {
+    return (
+      <Layout>
+        <p style={{ textAlign: 'center', marginTop: '3rem' }}>Carregando...</p>
+      </Layout>
+    )
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <p style={{ textAlign: 'center', marginTop: '3rem', color: 'red' }}>
+          {error}
+        </p>
+      </Layout>
+    )
+  }
+
+  if (!user) {
+    // Redirecionamento já foi tratado no useEffect; mas colocamos fallback aqui
+    return null
+  }
 
   return (
     <Layout>
@@ -80,8 +139,14 @@ export default function DashboardPage() {
         <div className="card-grid">
           <section className="card">
             <h2>Indicações</h2>
-            <p>Seu código: <strong>{user.referral_code || 'N/A'}</strong></p>
-            <p>Você indicou <strong>{user.referrals_count || 0}</strong> usuários.</p>
+            <p>
+              Seu código:{' '}
+              <strong>{user.referral_code || 'N/A'}</strong>
+            </p>
+            <p>
+              Você indicou{' '}
+              <strong>{user.referrals_count || 0}</strong> usuários.
+            </p>
             <button onClick={handleCopy}>
               {copied ? 'Copiado!' : 'Copiar meu código'}
             </button>
@@ -104,8 +169,13 @@ export default function DashboardPage() {
 
           <section className="card">
             <h2>Links Rápidos</h2>
-            <Link href="/transacoes" className="link">Ver Transações</Link><br />
-            <Link href="/rendimentos" className="link">Ver Rendimentos</Link>
+            <Link href="/transacoes" className="link">
+              Ver Transações
+            </Link>
+            <br />
+            <Link href="/rendimentos" className="link">
+              Ver Rendimentos
+            </Link>
           </section>
         </div>
       </div>
@@ -137,11 +207,12 @@ export default function DashboardPage() {
           padding: 1.5rem;
           width: 100%;
           max-width: 400px;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
           text-align: center;
         }
 
-        button, .link {
+        button,
+        .link {
           margin-top: 1rem;
           padding: 0.6rem 1.2rem;
           border-radius: 8px;
@@ -153,7 +224,8 @@ export default function DashboardPage() {
           display: inline-block;
         }
 
-        button:hover, .link:hover {
+        button:hover,
+        .link:hover {
           background-color: #005bb5;
         }
 
