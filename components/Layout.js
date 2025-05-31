@@ -62,22 +62,22 @@ export default function Layout({ children }) {
         }
 
         .top-nav {
-          background-color: #0a0a23;
-          color: white;
-          padding: 0.8rem 1.2rem;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+          background-color: white;
+          color: #333;
+          border-bottom: 1px solid #eee;
           position: sticky;
           top: 0;
           z-index: 1000;
         }
 
         .nav-container {
+          max-width: 1200px;
+          margin: 0 auto;
           display: flex;
-          flex-direction: row;
           align-items: center;
           justify-content: space-between;
+          padding: 0.8rem 1rem;
           flex-wrap: wrap;
-          gap: 0.5rem;
         }
 
         .logo {
@@ -88,14 +88,13 @@ export default function Layout({ children }) {
 
         .nav-links {
           display: flex;
-          flex-wrap: wrap;
           gap: 1rem;
+          flex-wrap: wrap;
           justify-content: flex-end;
-          flex: 1;
         }
 
         .nav-link {
-          color: white;
+          color: #333;
           text-decoration: none;
           font-weight: 500;
           padding: 0.4rem 0.8rem;
@@ -104,13 +103,12 @@ export default function Layout({ children }) {
         }
 
         .nav-link:hover {
-          background-color: rgba(255, 255, 255, 0.15);
+          background-color: #f0f0f0;
         }
 
         .nav-link.active {
-          background-color: white;
-          color: #0a0a23;
-          font-weight: bold;
+          background-color: #0070f3;
+          color: white;
         }
 
         .page-content {
@@ -126,25 +124,19 @@ export default function Layout({ children }) {
           font-size: 0.9rem;
           padding: 1rem;
           border-top: 1px solid #eee;
-          background-color: #f5f5f5;
+          background-color: #fafafa;
         }
 
         @media (max-width: 768px) {
-          .nav-container {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-
           .nav-links {
-            flex-direction: column;
-            align-items: flex-start;
-            width: 100%;
+            justify-content: center;
+            gap: 0.5rem;
             padding-top: 0.5rem;
           }
 
           .nav-link {
-            padding: 0.6rem 0.4rem;
-            width: 100%;
+            font-size: 0.9rem;
+            padding: 0.3rem 0.6rem;
           }
 
           .logo img {
