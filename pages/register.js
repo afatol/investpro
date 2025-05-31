@@ -38,7 +38,8 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // 2) Tenta registrar o usuário no Supabase Auth
+      // 2) Chama o Supabase Auth para criar o usuário.
+      //    O trigger em auth.users cuidará de inserir automaticamente em profiles.
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
         {
           email: email.trim(),
@@ -46,52 +47,34 @@ export default function RegisterPage() {
         },
         {
           data: {
-            // Armazena o código de indicação como metadado, se houver
+            // Armazena o código de indicação como metadado do usuário, se fornecido
             referral_code: referralCode.trim() || null
           }
         }
       )
 
       if (signUpError) {
-        throw signUpError
+        // Se for “already registered”, mostra mensagem amigável
+        if (
+          signUpError.message &&
+          signUpError.message.toLowerCase().includes('already registered')
+        ) {
+          setErrorMsg('Este e-mail já está cadastrado. Faça login ou recupere a senha.')
+        } else {
+          setErrorMsg(signUpError.message)
+        }
+        return
       }
 
-      // 3) Opcional: se não tiver trigger em 'profiles', insira manualmente
-      // const newUser = signUpData.user
-      // const { error: profileError } = await supabase
-      //   .from('profiles')
-      //   .insert([
-      //     {
-      //       id: newUser.id,
-      //       // Adicione aqui colunas obrigatórias, se existirem
-      //       referral_code: referralCode.trim() || null,
-      //       created_at: new Date()
-      //     }
-      //   ])
-      // if (profileError) {
-      //   await supabase.auth.admin.deleteUser(newUser.id)
-      //   throw profileError
-      // }
-
-      // 4) Cadastro bem-sucedido: redireciona para a página de login
+      // 3) Cadastro bem-sucedido: redireciona para a página de login
       router.push('/login')
     } catch (error) {
-      console.error('Erro ao cadastrar usuário:', error.message)
-
-      // 5) Tratamento específico para "User already registered"
-      if (
-        error.message &&
-        error.message.toLowerCase().includes('already registered')
-      ) {
-        setErrorMsg('Este e-mail já está cadastrado. Faça login ou recupere a senha.')
-      } else if (error.status === 500) {
-        setErrorMsg(
-          'Houve um problema no servidor ao salvar o usuário. ' +
-            'Verifique as configurações do banco de dados ou tente novamente mais tarde.'
-        )
-      } else {
-        setErrorMsg(error.message)
-      }
+      console.error('Erro ao cadastrar usuário:', error)
+      // Tratamento genérico de erro de servidor
+      setErrorMsg(
+        'Houve um problema no servidor ao salvar o usuário. ' +
+          'Verifique as configurações do banco de dados ou tente novamente mais tarde.'
+      )
     } finally {
       setLoading(false)
     }
