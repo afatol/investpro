@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer
-} from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 export default function RendimentosPage() {
   const [data, setData] = useState([])
@@ -17,21 +10,11 @@ export default function RendimentosPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true)
-      setError(null)
-
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError || !session) {
-        setError('Sessão inválida. Redirecionando...')
-        window.location.href = '/login'
-        return
-      }
+      if (sessionError || !session) return window.location.href = '/login'
 
       const userId = session.user?.id
-      if (!userId) {
-        setError('Usuário não autenticado.')
-        return
-      }
+      if (!userId) return setError('Usuário não autenticado.')
 
       const { data: rendimentos, error: fetchError } = await supabase
         .from('rendimentos')
@@ -40,8 +23,8 @@ export default function RendimentosPage() {
         .order('data', { ascending: false })
 
       if (fetchError) {
-        console.error(fetchError)
-        setError('Erro ao buscar dados.')
+        console.error('Erro ao buscar dados de rendimentos:', fetchError)
+        setError('Erro ao buscar dados de rendimentos.')
       } else {
         setData(rendimentos || [])
       }
@@ -52,14 +35,10 @@ export default function RendimentosPage() {
     fetchData()
   }, [])
 
-  // Dados para gráfico
-  const chartData = data
-    .filter(item => item.valor !== null)
-    .map(item => ({
-      name: new Date(item.data).toLocaleDateString(),
-      valor: Number(item.valor)
-    }))
-    .reverse()
+  const chartData = data.map(item => ({
+    name: new Date(item.data).toLocaleDateString(),
+    valor: item.valor
+  })).reverse()
 
   return (
     <Layout>
@@ -78,7 +57,7 @@ export default function RendimentosPage() {
                   <BarChart data={chartData}>
                     <XAxis dataKey="name" />
                     <YAxis />
-                    <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+                    <Tooltip />
                     <Bar dataKey="valor" fill="#4CAF50" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -88,23 +67,23 @@ export default function RendimentosPage() {
             </div>
 
             <div className="transacoes">
-              <h2>Histórico de Transações</h2>
+              <h2>Histórico</h2>
               <table>
                 <thead>
                   <tr>
                     <th>Data</th>
                     <th>Valor (USD)</th>
-                    <th>Tipo</th>
                     <th>Status</th>
+                    <th>Tipo</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.map((item, i) => (
                     <tr key={i}>
                       <td>{new Date(item.data).toLocaleDateString()}</td>
-                      <td>{item.valor?.toFixed(2) || '-'}</td>
-                      <td>{item.tipo || 'rendimento'}</td>
-                      <td className={`status ${item.status || ''}`}>{item.status || 'pendente'}</td>
+                      <td>{item.valor?.toFixed(2)}</td>
+                      <td className={`status ${item.status || ''}`}>{item.status || 'N/A'}</td>
+                      <td>{item.tipo || 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>
