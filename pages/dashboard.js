@@ -20,7 +20,7 @@ export default function DashboardPage() {
 
       if (error) {
         console.error('Erro ao buscar perfil:', error)
-        setUser(user)
+        setUser(user) // Fallback mínimo
       } else {
         setUser({ ...user, ...data })
       }
@@ -48,13 +48,18 @@ export default function DashboardPage() {
           <section className="card">
             <h2>Indicações</h2>
             <p>Você indicou <strong>{user.referrals_count || 0}</strong> usuários.</p>
-            <p>
-              Seu código de indicação:{" "}
-              <span className="referral-code">{user.referral_code || '—'}</span>
-            </p>
-            <button onClick={handleCopy}>
-              {copied ? 'Copiado!' : 'Copiar código'}
-            </button>
+
+            <div className="code-section">
+              <label>Código de indicação:</label>
+              <div className="code-box">
+                <span className="referral-code">
+                  {user.referral_code || '—'}
+                </span>
+                <button onClick={handleCopy} aria-label="Copiar código">
+                  {copied ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+            </div>
           </section>
 
           <section className="card">
@@ -80,8 +85,8 @@ export default function DashboardPage() {
 
         .card-grid {
           display: flex;
-          gap: 2rem;
           flex-wrap: wrap;
+          gap: 2rem;
           justify-content: center;
         }
 
@@ -95,18 +100,33 @@ export default function DashboardPage() {
           box-shadow: 0 2px 6px rgba(0,0,0,0.06);
         }
 
+        .code-section {
+          margin-top: 1rem;
+        }
+
+        .code-section label {
+          display: block;
+          margin-bottom: 0.5rem;
+          font-weight: 600;
+        }
+
+        .code-box {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
         .referral-code {
-          display: inline-block;
           background: #f0f0f0;
-          padding: 0.3rem 0.6rem;
+          padding: 0.4rem 0.8rem;
           border-radius: 6px;
           font-family: monospace;
           font-weight: bold;
           color: #333;
+          font-size: 1rem;
         }
 
         button, .link {
-          margin-top: 1rem;
           padding: 0.6rem 1.2rem;
           border-radius: 8px;
           font-weight: bold;
@@ -117,10 +137,18 @@ export default function DashboardPage() {
           color: white;
           border: none;
           text-align: center;
+          cursor: pointer;
         }
 
         button:hover, .link:hover {
           background-color: #005bb5;
+        }
+
+        @media (max-width: 600px) {
+          .code-box {
+            flex-direction: column;
+            align-items: stretch;
+          }
         }
       `}</style>
     </Layout>
