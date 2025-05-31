@@ -53,7 +53,6 @@ export default function RegisterPage() {
       )
 
       if (signUpError) {
-        // Erro genérico do Supabase (por exemplo, email já cadastrado, RLS etc.)
         throw signUpError
       }
 
@@ -74,7 +73,7 @@ export default function RegisterPage() {
       //   throw profileError
       // }
 
-      // 4) Se chegou aqui sem erros, redireciona para a página de login
+      // 4) Se chegou aqui sem erros, redireciona para a página de login diretamente
       router.push('/login')
     } catch (error) {
       console.error('Erro ao cadastrar usuário:', error.message)
