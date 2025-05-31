@@ -1,188 +1,245 @@
+// pages/register.js
 import { useState } from 'react'
-import Link from 'next/link'
-import Nav from '../components/Nav'
+import { useRouter } from 'next/router'
+import { supabase } from '../lib/supabaseClient'
+import LayoutPublic from '../components/LayoutPublic'
 
-export default function Register() {
+export default function RegisterPage() {
+  const router = useRouter()
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [referralCode, setReferralCode] = useState('')
-  const [generatedCode, setGeneratedCode] = useState('')
-  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   const handleRegister = async (e) => {
     e.preventDefault()
-    setMessage('')
     setError('')
-    setGeneratedCode('')
+    setSuccessMessage('')
+    setLoading(true)
 
-    const res = await fetch('/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, referral_code: referralCode })
-    })
+    // Validações mínimas no front (não substitui validação server-side/RLS)
+    if (!email || !password) {
+      setError('Email e senha são obrigatórios.')
+      setLoading(false)
+      return
+    }
+    if (password.length < 6) {
+      setError('A senha precisa ter no mínimo 6 caracteres.')
+      setLoading(false)
+      return
+    }
 
-    const result = await res.json()
+    try {
+      // 1) Cria usuário no Auth do Supabase
+      const { user, error: signUpError } = await supabase.auth.signUp(
+        { email, password },
+        {
+          data: { name } // podemos salvar nome no metadata de auth, mas criaremos o profile separado
+        }
+      )
+      if (signUpError) {
+        throw signUpError
+      }
+      // No modo “email confirm” do Supabase, user será apenas um “user id” temporário até a confirmação.
+      // Caso você não use confirmação por email, o objeto user já estará completo.
 
-    if (res.ok) {
-      setGeneratedCode(result.referralCode)
-      setMessage('Conta criada com sucesso!')
-      setEmail('')
-      setPassword('')
-      setReferralCode('')
-    } else {
-      setError(result.error || 'Erro ao registrar.')
+      // 2) Depois que o Auth criar o usuário (mesmo que precise confirmar email),
+      //    criamos o registro em “profiles” via função REST ou SDK.
+      //    Aqui, usamos o método anônimo, mas assumimos que RLS permite INSERT para usuários que acabaram de se cadastrar.
+      const userId = user?.id
+      if (!userId) {
+        throw new Error('Não foi possível obter o ID do usuário após o cadastro.')
+      }
+
+      // Gera um código de indicação simples, por exemplo:
+      const generatedReferralCode = 'IP' + Math.floor(Math.random() * 10000000)
+
+      // 3) Insere no “profiles”
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: userId,
+            name,
+            referral_code: generatedReferralCode,
+            // referrals_count inicia em 0
+            referrals_count: 0,
+            // se tiver código de quem indicou, tentamos atribuir o referrer
+            referrer_id: referralCode ? referralCode : null
+          }
+        ])
+
+      if (profileError) {
+        // Se falhou no insert de profiles, deletamos o usuário criado no Auth para não deixar “meia-conta”
+        await supabase.auth.api.deleteUser(userId, { shouldReauthenticate: false })
+        throw profileError
+      }
+
+      // 4) Se veio referralCode, atualizamos o contador do “referrer”
+      if (referralCode) {
+        // Procuramos o perfil cujo referral_code bate com o informado
+        const { data: refProfile, error: findRefError } = await supabase
+          .from('profiles')
+          .select('id, referrals_count')
+          .eq('referral_code', referralCode)
+          .single()
+
+        if (findRefError) {
+          console.warn('Código de indicação inválido:', findRefError.message)
+        } else if (refProfile && refProfile.id) {
+          // Incrementa o contador
+          await supabase
+            .from('profiles')
+            .update({ referrals_count: refProfile.referrals_count + 1 })
+            .eq('id', refProfile.id)
+        }
+      }
+
+      // 5) Se tudo der certo, exibe mensagem de sucesso e redireciona após 1.5s
+      setSuccessMessage('Cadastro realizado com sucesso! Redirecionando para o dashboard…')
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 1500)
+    } catch (err) {
+      console.error(err)
+      setError(err.message || 'Erro inesperado ao registrar usuário.')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(generatedCode)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   return (
-    <>
-      <Nav />
-      <div className="form-container">
-        <h1>Cadastro</h1>
+    <LayoutPublic>
+      <div className="register-container">
+        <h1>Cadastre-se no InvestPro</h1>
 
-        {message && (
-          <div className="success">
-            <p>{message}</p>
-            {generatedCode && (
-              <div className="code-box">
-                <strong>Seu código de indicação:</strong>
-                <p className="code">{generatedCode}</p>
-                <button className="copy-btn" onClick={handleCopy}>
-                  {copied ? 'Copiado!' : 'Copiar código'}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-        {error && <p className="error">{error}</p>}
+        {error && <p className="message error">{error}</p>}
+        {successMessage && <p className="message success">{successMessage}</p>}
 
-        <form onSubmit={handleRegister}>
+        <form onSubmit={handleRegister} className="register-form">
+          <label htmlFor="name">Nome (opcional):</label>
           <input
-            type="email"
-            placeholder="Seu email"
-            required
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Senha"
-            required
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-          />
-          <input
+            id="name"
             type="text"
-            placeholder="Código de indicação (opcional)"
-            value={referralCode}
-            onChange={e => setReferralCode(e.target.value)}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Seu nome"
           />
-          <button type="submit">Cadastrar</button>
-        </form>
 
-        <p className="login-link">
-          <Link href="/login">Já tem conta? Faça login</Link>
-        </p>
+          <label htmlFor="email">Email:</label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="seu@email.com"
+            required
+          />
+
+          <label htmlFor="password">Senha (mínimo 6 caracteres):</label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="********"
+            minLength={6}
+            required
+          />
+
+          <label htmlFor="referral">Código de Indicação (opcional):</label>
+          <input
+            id="referral"
+            type="text"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value)}
+            placeholder="Digite o código de quem indicou"
+          />
+
+          <button type="submit" disabled={loading}>
+            {loading ? 'Cadastrando...' : 'Cadastrar'}
+          </button>
+        </form>
       </div>
 
       <style jsx>{`
-        .form-container {
-          max-width: 420px;
-          margin: 3rem auto;
-          padding: 2rem;
-          background: #fff;
-          border-radius: 12px;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        .register-container {
+          max-width: 400px;
+          margin: auto;
+          background: white;
+          padding: 2rem 1rem;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         }
 
         h1 {
           text-align: center;
           margin-bottom: 1.5rem;
+          font-size: 1.5rem;
         }
 
-        form {
+        .message {
+          padding: 0.75rem 1rem;
+          border-radius: 6px;
+          margin-bottom: 1rem;
+          text-align: center;
+        }
+        .message.error {
+          background-color: #fde2e2;
+          color: #b00020;
+        }
+        .message.success {
+          background-color: #e2f7e2;
+          color: #155724;
+        }
+
+        .register-form {
           display: flex;
           flex-direction: column;
           gap: 1rem;
         }
 
+        label {
+          font-weight: 600;
+        }
+
         input {
-          padding: 0.75rem;
-          border: 1px solid #ccc;
-          border-radius: 8px;
+          padding: 0.6rem;
           font-size: 1rem;
+          border: 1px solid #ccc;
+          border-radius: 6px;
         }
 
         button {
-          padding: 0.75rem;
+          margin-top: 1rem;
+          padding: 0.8rem;
+          font-size: 1rem;
           background-color: #0070f3;
           color: white;
           border: none;
-          border-radius: 8px;
-          font-size: 1rem;
-          font-weight: bold;
+          border-radius: 6px;
           cursor: pointer;
-          transition: background-color 0.3s;
+          transition: background-color 0.2s ease;
         }
 
         button:hover {
           background-color: #005bb5;
         }
 
-        .copy-btn {
-          margin-top: 0.5rem;
-          background-color: #28a745;
-        }
-
-        .copy-btn:hover {
-          background-color: #218838;
-        }
-
-        .success {
-          color: green;
-          text-align: center;
-          margin-bottom: 1rem;
-        }
-
-        .error {
-          color: red;
-          text-align: center;
-          margin-bottom: 1rem;
-        }
-
-        .login-link {
-          text-align: center;
-          margin-top: 1.5rem;
-        }
-
-        .code-box {
-          background: #f1f1f1;
-          padding: 1rem;
-          border-radius: 8px;
-          margin-top: 1rem;
-        }
-
-        .code {
-          font-size: 1.2rem;
-          font-family: monospace;
-          margin: 0.5rem 0;
+        button:disabled {
+          background-color: #999;
+          cursor: not-allowed;
         }
 
         @media (max-width: 480px) {
-          .form-container {
-            margin: 1.5rem 1rem;
-            padding: 1.5rem;
+          .register-container {
+            padding: 1.5rem 1rem;
           }
         }
       `}</style>
-    </>
+    </LayoutPublic>
   )
 }
