@@ -16,17 +16,17 @@ export default function RendimentosPage() {
       const userId = session.user?.id
       if (!userId) return setError('Usuário não autenticado.')
 
-      const { data: rendimentos, error: fetchError } = await supabase
-        .from('rendimentos')
+      const { data: depositos, error } = await supabase
+        .from('depositos')
         .select('*')
         .eq('user_id', userId)
+        .eq('status', 'approved')
         .order('data', { ascending: false })
 
-      if (fetchError) {
-        console.error('Erro ao buscar dados de rendimentos:', fetchError)
-        setError('Erro ao buscar dados de rendimentos.')
+      if (error) {
+        setError('Erro ao buscar depósitos.')
       } else {
-        setData(rendimentos || [])
+        setData(depositos || [])
       }
 
       setLoading(false)
@@ -37,7 +37,7 @@ export default function RendimentosPage() {
 
   const chartData = data.map(item => ({
     name: new Date(item.data).toLocaleDateString(),
-    valor: item.valor
+    valor: Number(item.valor)
   })).reverse()
 
   return (
@@ -51,7 +51,7 @@ export default function RendimentosPage() {
         {!loading && !error && (
           <>
             <div className="grafico">
-              <h2>Gráfico de Rendimentos</h2>
+              <h2>Gráfico de Depósitos Aprovados</h2>
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={chartData}>
@@ -62,28 +62,26 @@ export default function RendimentosPage() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p style={{ textAlign: 'center' }}>Sem dados para exibir no gráfico.</p>
+                <p style={{ textAlign: 'center' }}>Nenhum dado disponível para exibição.</p>
               )}
             </div>
 
             <div className="transacoes">
-              <h2>Histórico</h2>
+              <h2>Histórico de Depósitos</h2>
               <table>
                 <thead>
                   <tr>
                     <th>Data</th>
                     <th>Valor (USD)</th>
                     <th>Status</th>
-                    <th>Tipo</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.map((item, i) => (
                     <tr key={i}>
                       <td>{new Date(item.data).toLocaleDateString()}</td>
-                      <td>{item.valor?.toFixed(2)}</td>
-                      <td className={`status ${item.status || ''}`}>{item.status || 'N/A'}</td>
-                      <td>{item.tipo || 'N/A'}</td>
+                      <td>{Number(item.valor).toFixed(2)}</td>
+                      <td className={`status ${item.status}`}>{item.status}</td>
                     </tr>
                   ))}
                 </tbody>
