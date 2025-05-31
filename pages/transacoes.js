@@ -2,8 +2,14 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
 import {
-  ResponsiveContainer, BarChart, Bar,
-  XAxis, YAxis, Tooltip, CartesianGrid, Legend
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend
 } from 'recharts'
 
 export default function TransacoesPage() {
@@ -14,20 +20,27 @@ export default function TransacoesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        // 1) Verifica sessão do usuário
+        const {
+          data: { session },
+          error: sessionError
+        } = await supabase.auth.getSession()
         if (sessionError || !session) {
           window.location.href = '/login'
           return
         }
 
         const userId = session.user.id
-        const { data, error } = await supabase
+
+        // 2) Busca na tabela "transactions" apenas colunas que existem:
+        //    id, amount, type, status, data
+        const { data, error: fetchError } = await supabase
           .from('transactions')
           .select('id, amount, type, status, data')
           .eq('user_id', userId)
           .order('data', { ascending: true })
 
-        if (error) throw error
+        if (fetchError) throw fetchError
         setTransacoes(data || [])
       } catch (err) {
         console.error(err)
@@ -40,20 +53,23 @@ export default function TransacoesPage() {
     fetchData()
   }, [])
 
-  const aprovadas = transacoes.filter(t => t.status === 'approved')
+  // Filtra apenas as transações aprovadas
+  const aprovadas = transacoes.filter((t) => t.status === 'approved')
 
+  // Agrupa aprovações por data (coluna "data")
   const agrupado = {}
-  aprovadas.forEach(t => {
-    const dia = new Date(t.data || t.created_at).toLocaleDateString('pt-BR')
+  aprovadas.forEach((t) => {
+    const dia = new Date(t.data).toLocaleDateString('pt-BR')
     if (!agrupado[dia]) agrupado[dia] = { name: dia, deposito: 0, saque: 0 }
 
     const valor = parseFloat(t.amount) || 0
     if (t.type?.toLowerCase().includes('dep')) agrupado[dia].deposito += valor
     if (t.type?.toLowerCase().includes('saq')) agrupado[dia].saque += valor
   })
-
   const chartData = Object.values(agrupado)
-  const formatUSD = v => `US$ ${Number(v).toFixed(2)}`
+
+  // Função para formatar em USD
+  const formatUSD = (v) => `US$ ${Number(v).toFixed(2)}`
 
   return (
     <Layout>
@@ -73,14 +89,16 @@ export default function TransacoesPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis tickFormatter={formatUSD} />
-                    <Tooltip formatter={formatUSD} />
+                    <Tooltip formatter={(value) => formatUSD(value)} />
                     <Legend />
                     <Bar dataKey="deposito" name="Depósitos" fill="#4caf50" />
                     <Bar dataKey="saque" name="Saques" fill="#f44336" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p>Nenhuma transação aprovada encontrada.</p>
+                <p style={{ textAlign: 'center' }}>
+                  Nenhuma transação aprovada encontrada.
+                </p>
               )}
             </div>
 
@@ -117,7 +135,8 @@ export default function TransacoesPage() {
             padding: 2rem 1rem;
           }
 
-          h1, h2 {
+          h1,
+          h2 {
             text-align: center;
             margin-bottom: 1rem;
           }
@@ -135,7 +154,8 @@ export default function TransacoesPage() {
             border-collapse: collapse;
           }
 
-          th, td {
+          th,
+          td {
             padding: 0.8rem;
             text-align: center;
             border-bottom: 1px solid #ddd;
