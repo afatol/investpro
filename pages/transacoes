@@ -2,18 +2,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  Legend
+  ResponsiveContainer, BarChart, Bar,
+  XAxis, YAxis, Tooltip, CartesianGrid, Legend
 } from 'recharts'
-
-const formatUSD = (value) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 
 export default function TransacoesPage() {
   const [transacoes, setTransacoes] = useState([])
@@ -22,24 +13,28 @@ export default function TransacoesPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError || !session) return window.location.href = '/login'
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError || !session) {
+          window.location.href = '/login'
+          return
+        }
 
-      const userId = session.user.id
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('data', { ascending: true })
+        const userId = session.user.id
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('id, amount, type, status, data')
+          .eq('user_id', userId)
+          .order('data', { ascending: true })
 
-      if (error) {
-        console.error(error)
-        setError('Erro ao buscar transações')
-      } else {
+        if (error) throw error
         setTransacoes(data || [])
+      } catch (err) {
+        console.error(err)
+        setError('Erro ao buscar transações.')
+      } finally {
+        setLoading(false)
       }
-
-      setLoading(false)
     }
 
     fetchData()
@@ -47,22 +42,23 @@ export default function TransacoesPage() {
 
   const aprovadas = transacoes.filter(t => t.status === 'approved')
 
-  // Agrupar por data e tipo
   const agrupado = {}
   aprovadas.forEach(t => {
-    const data = new Date(t.data).toLocaleDateString('pt-BR')
-    if (!agrupado[data]) agrupado[data] = { name: data, deposito: 0, saque: 0 }
+    const dia = new Date(t.data || t.created_at).toLocaleDateString('pt-BR')
+    if (!agrupado[dia]) agrupado[dia] = { name: dia, deposito: 0, saque: 0 }
 
-    if (t.type === 'depósito') agrupado[data].deposito += parseFloat(t.amount)
-    if (t.type === 'saque') agrupado[data].saque += parseFloat(t.amount)
+    const valor = parseFloat(t.amount) || 0
+    if (t.type?.toLowerCase().includes('dep')) agrupado[dia].deposito += valor
+    if (t.type?.toLowerCase().includes('saq')) agrupado[dia].saque += valor
   })
 
   const chartData = Object.values(agrupado)
+  const formatUSD = v => `US$ ${Number(v).toFixed(2)}`
 
   return (
     <Layout>
-      <div className="transacoes">
-        <h1>Depósitos e Saques</h1>
+      <div className="container">
+        <h1>Transações</h1>
 
         {loading && <p>Carregando...</p>}
         {error && <p className="error">{error}</p>}
@@ -70,25 +66,25 @@ export default function TransacoesPage() {
         {!loading && !error && (
           <>
             <div className="grafico">
-              <h2>Gráfico por Tipo</h2>
+              <h2>Gráfico de Depósitos e Saques</h2>
               {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-30} textAnchor="end" />
-                    <YAxis tickFormatter={(v) => formatUSD(v)} tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(value) => formatUSD(value)} />
+                    <XAxis dataKey="name" />
+                    <YAxis tickFormatter={formatUSD} />
+                    <Tooltip formatter={formatUSD} />
                     <Legend />
-                    <Bar dataKey="deposito" name="Depósitos" fill="#4CAF50" />
+                    <Bar dataKey="deposito" name="Depósitos" fill="#4caf50" />
                     <Bar dataKey="saque" name="Saques" fill="#f44336" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p style={{ textAlign: 'center' }}>Nenhuma transação aprovada ainda.</p>
+                <p>Nenhuma transação aprovada encontrada.</p>
               )}
             </div>
 
-            <div className="historico">
+            <div className="tabela">
               <h2>Histórico de Transações</h2>
               <table>
                 <thead>
@@ -115,10 +111,10 @@ export default function TransacoesPage() {
         )}
 
         <style jsx>{`
-          .transacoes {
+          .container {
             max-width: 900px;
-            margin: 2rem auto;
-            padding: 1rem;
+            margin: auto;
+            padding: 2rem 1rem;
           }
 
           h1, h2 {
@@ -127,17 +123,16 @@ export default function TransacoesPage() {
           }
 
           .grafico {
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
           }
 
-          .historico {
+          .tabela {
             overflow-x: auto;
           }
 
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 1rem;
           }
 
           th, td {
@@ -154,40 +149,24 @@ export default function TransacoesPage() {
             background-color: #d4edda;
             color: #155724;
             font-weight: bold;
-            border-radius: 6px;
+            border-radius: 4px;
             padding: 0.3rem 0.6rem;
           }
 
           .status.pending {
             background-color: #fff3cd;
             color: #856404;
-            font-weight: bold;
-            border-radius: 6px;
-            padding: 0.3rem 0.6rem;
           }
 
           .status.rejected {
             background-color: #f8d7da;
             color: #721c24;
-            font-weight: bold;
-            border-radius: 6px;
-            padding: 0.3rem 0.6rem;
           }
 
           .error {
             color: red;
             text-align: center;
             margin-top: 1rem;
-          }
-
-          @media (max-width: 600px) {
-            table {
-              font-size: 0.9rem;
-            }
-
-            .grafico {
-              margin-bottom: 2rem;
-            }
           }
         `}</style>
       </div>
