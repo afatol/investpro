@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
 
+// Função utilitária para formatar valores em USD
 const formatUSD = (value) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 
@@ -43,52 +44,64 @@ export default function DashboardPage() {
         if (profileError) {
           console.error('Erro ao buscar perfil:', profileError)
           setError('Falha ao carregar perfil.')
+          setLoading(false)
+          return
         } else {
           const enrichedUser = { ...session.user, ...profile }
           setUser(enrichedUser)
         }
 
-        // 3) Busca totais de transações aprovadas (depósito/saque)
+        // 3) Busca totais de transações aprovadas (deposit e withdraw)
         const { data: transacoes, error: txError } = await supabase
           .from('transactions')
-          .select('tipo, valor')
+          .select('type, amount')
           .eq('user_id', userId)
           .eq('status', 'approved')
+
+        let depositos = 0
+        let saques = 0
 
         if (txError) {
           console.error('Erro ao buscar transações:', txError)
           setError('Falha ao carregar transações.')
-        } else {
-          let depositos = 0
-          let saques = 0
-          if (transacoes) {
-            transacoes.forEach((t) => {
-              const valorNum = parseFloat(t.valor)
-              if (t.tipo === 'depósito') depositos += valorNum
-              if (t.tipo === 'saque') saques += valorNum
-            })
-          }
-          // 4) Busca rendimentos aplicados
-          const { data: rendimentos, error: rendError } = await supabase
-            .from('rendimentos_aplicados')
-            .select('valor')
-            .eq('user_id', userId)
-
-          if (rendError) {
-            console.error('Erro ao buscar rendimentos:', rendError)
-            setError((prev) => prev + ' Falha ao carregar rendimentos.')
-          } else {
-            const totalRendimentos = rendimentos
-              ? rendimentos.reduce((acc, r) => acc + parseFloat(r.valor), 0)
-              : 0
-
-            setTotais({
-              depositos,
-              saques,
-              rendimentos: totalRendimentos
-            })
-          }
+        } else if (transacoes) {
+          transacoes.forEach((t) => {
+            const valorNum = parseFloat(t.amount) || 0
+            if (t.type === 'deposit') {
+              depositos += valorNum
+            }
+            if (t.type === 'withdraw') {
+              saques += valorNum
+            }
+            // Se seu banco ainda usar 'depósito' e 'saque' em português, ajuste para:
+            // if (t.type === 'depósito') depositos += valorNum
+            // if (t.type === 'saque')    saques += valorNum
+          })
         }
+
+        // 4) Busca rendimentos aplicados
+        const { data: rendimentos, error: rendError } = await supabase
+          .from('rendimentos_aplicados')
+          .select('valor')
+          .eq('user_id', userId)
+
+        let totalRendimentos = 0
+        if (rendError) {
+          console.error('Erro ao buscar rendimentos:', rendError)
+          setError((prev) => prev + ' Falha ao carregar rendimentos.')
+        } else if (rendimentos) {
+          totalRendimentos = rendimentos.reduce(
+            (acc, r) => acc + parseFloat(r.valor || 0),
+            0
+          )
+        }
+
+        // 5) Atualiza state com os totais apurados
+        setTotais({
+          depositos,
+          saques,
+          rendimentos: totalRendimentos
+        })
       } catch (err) {
         console.error('Erro inesperado no dashboard:', err)
         setError('Erro inesperado ao carregar dados.')
@@ -127,7 +140,7 @@ export default function DashboardPage() {
   }
 
   if (!user) {
-    // Redirecionamento já foi tratado no useEffect; mas colocamos fallback aqui
+    // Caso não haja usuário, nada a exibir (redirecionamento já tratado)
     return null
   }
 
