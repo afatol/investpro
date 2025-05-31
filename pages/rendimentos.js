@@ -8,14 +8,15 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid
+  CartesianGrid,
+  Legend
 } from 'recharts'
 
 const formatUSD = (value) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 
 export default function RendimentosPage() {
-  const [transacoes, setTransacoes] = useState([])
+  const [rendimentos, setRendimentos] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -26,16 +27,16 @@ export default function RendimentosPage() {
 
       const userId = session.user.id
       const { data, error } = await supabase
-        .from('transactions')
+        .from('rendimentos_aplicados')
         .select('*')
         .eq('user_id', userId)
-        .order('data', { ascending: false })
+        .order('data', { ascending: true })
 
       if (error) {
         console.error(error)
-        setError('Erro ao buscar transações')
+        setError('Erro ao buscar rendimentos')
       } else {
-        setTransacoes(data || [])
+        setRendimentos(data || [])
       }
 
       setLoading(false)
@@ -44,70 +45,74 @@ export default function RendimentosPage() {
     fetchData()
   }, [])
 
-  const chartData = transacoes
-    .filter(t => t.status === 'approved')
-    .map(t => ({
-      name: new Date(t.data).toLocaleDateString('pt-BR'),
-      valor: parseFloat(t.amount || 0)
-    }))
-    .reverse()
+  // Processa para gráfico e total
+  const grouped = {}
+  let total = 0
+
+  rendimentos.forEach(r => {
+    const dia = new Date(r.data).toLocaleDateString('pt-BR')
+    if (!grouped[dia]) grouped[dia] = { name: dia, rendimento: 0, indicacao: 0 }
+
+    if (r.tipo === 'indicacao') {
+      grouped[dia].indicacao += parseFloat(r.valor)
+    } else {
+      grouped[dia].rendimento += parseFloat(r.valor)
+    }
+
+    total += parseFloat(r.valor)
+  })
+
+  const chartData = Object.values(grouped)
 
   return (
     <Layout>
       <div className="rendimentos">
-        <h1>Minhas Transações</h1>
+        <h1>Meus Rendimentos</h1>
 
         {loading && <p>Carregando...</p>}
         {error && <p className="error">{error}</p>}
 
         {!loading && !error && (
           <>
+            <div className="saldo-atual">
+              <h2>Saldo Acumulado: <span>{formatUSD(total)}</span></h2>
+            </div>
+
             <div className="grafico">
-              <h2>Gráfico de Rendimentos Aprovados</h2>
+              <h2>Gráfico Diário de Rendimentos</h2>
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={320}>
-                  <BarChart
-                    data={chartData}
-                    margin={{ top: 10, right: 10, left: -10, bottom: 30 }}
-                  >
+                  <BarChart data={chartData} margin={{ top: 10, right: 20, left: -10, bottom: 30 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 12 }}
-                      angle={-30}
-                      textAnchor="end"
-                    />
-                    <YAxis
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => formatUSD(value)}
-                    />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-30} textAnchor="end" />
+                    <YAxis tickFormatter={(v) => formatUSD(v)} tick={{ fontSize: 12 }} />
                     <Tooltip formatter={(value) => formatUSD(value)} />
-                    <Bar dataKey="valor" fill="#4CAF50" radius={[4, 4, 0, 0]} />
+                    <Legend />
+                    <Bar dataKey="rendimento" name="Rendimento" fill="#4CAF50" />
+                    <Bar dataKey="indicacao" name="Indicação" fill="#2196F3" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p style={{ textAlign: 'center' }}>Nenhuma transação aprovada ainda.</p>
+                <p style={{ textAlign: 'center' }}>Nenhum rendimento lançado ainda.</p>
               )}
             </div>
 
-            <div className="transacoes">
-              <h2>Histórico Completo</h2>
+            <div className="historico">
+              <h2>Histórico de Rendimentos</h2>
               <table>
                 <thead>
                   <tr>
                     <th>Data</th>
                     <th>Tipo</th>
-                    <th>Valor (USD)</th>
-                    <th>Status</th>
+                    <th>Valor</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {transacoes.map((t, i) => (
+                  {rendimentos.map((r, i) => (
                     <tr key={i}>
-                      <td>{new Date(t.data).toLocaleDateString('pt-BR')}</td>
-                      <td>{t.type}</td>
-                      <td>{formatUSD(parseFloat(t.amount))}</td>
-                      <td className={`status ${t.status}`}>{t.status}</td>
+                      <td>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
+                      <td>{r.tipo}</td>
+                      <td>{formatUSD(r.valor)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -128,11 +133,22 @@ export default function RendimentosPage() {
             margin-bottom: 1rem;
           }
 
+          .saldo-atual {
+            text-align: center;
+            margin-bottom: 2rem;
+          }
+
+          .saldo-atual span {
+            color: #0070f3;
+            font-size: 1.6rem;
+            font-weight: bold;
+          }
+
           .grafico {
             margin-bottom: 3rem;
           }
 
-          .transacoes {
+          .historico {
             overflow-x: auto;
           }
 
@@ -150,30 +166,6 @@ export default function RendimentosPage() {
 
           th {
             background-color: #f5f5f5;
-          }
-
-          .status.approved {
-            background-color: #d4edda;
-            color: #155724;
-            font-weight: bold;
-            border-radius: 6px;
-            padding: 0.3rem 0.6rem;
-          }
-
-          .status.pending {
-            background-color: #fff3cd;
-            color: #856404;
-            font-weight: bold;
-            border-radius: 6px;
-            padding: 0.3rem 0.6rem;
-          }
-
-          .status.rejected {
-            background-color: #f8d7da;
-            color: #721c24;
-            font-weight: bold;
-            border-radius: 6px;
-            padding: 0.3rem 0.6rem;
           }
 
           .error {
