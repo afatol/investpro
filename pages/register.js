@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabaseClient'
-import LayoutPublic from '../components/LayoutPublic'
+import Layout from '../components/Layout'   // <-- alterado aqui
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -20,7 +20,6 @@ export default function RegisterPage() {
     setSuccessMessage('')
     setLoading(true)
 
-    // Validações mínimas no front (não substitui validação server-side/RLS)
     if (!email || !password) {
       setError('Email e senha são obrigatórios.')
       setLoading(false)
@@ -33,31 +32,20 @@ export default function RegisterPage() {
     }
 
     try {
-      // 1) Cria usuário no Auth do Supabase
       const { user, error: signUpError } = await supabase.auth.signUp(
         { email, password },
-        {
-          data: { name } // podemos salvar nome no metadata de auth, mas criaremos o profile separado
-        }
+        { data: { name } }
       )
       if (signUpError) {
         throw signUpError
       }
-      // No modo “email confirm” do Supabase, user será apenas um “user id” temporário até a confirmação.
-      // Caso você não use confirmação por email, o objeto user já estará completo.
-
-      // 2) Depois que o Auth criar o usuário (mesmo que precise confirmar email),
-      //    criamos o registro em “profiles” via função REST ou SDK.
-      //    Aqui, usamos o método anônimo, mas assumimos que RLS permite INSERT para usuários que acabaram de se cadastrar.
       const userId = user?.id
       if (!userId) {
-        throw new Error('Não foi possível obter o ID do usuário após o cadastro.')
+        throw new Error('Não foi possível obter o ID do usuário.')
       }
 
-      // Gera um código de indicação simples, por exemplo:
       const generatedReferralCode = 'IP' + Math.floor(Math.random() * 10000000)
 
-      // 3) Insere no “profiles”
       const { error: profileError } = await supabase
         .from('profiles')
         .insert([
@@ -65,32 +53,25 @@ export default function RegisterPage() {
             id: userId,
             name,
             referral_code: generatedReferralCode,
-            // referrals_count inicia em 0
             referrals_count: 0,
-            // se tiver código de quem indicou, tentamos atribuir o referrer
-            referrer_id: referralCode ? referralCode : null
+            referrer_id: referralCode || null
           }
         ])
-
       if (profileError) {
-        // Se falhou no insert de profiles, deletamos o usuário criado no Auth para não deixar “meia-conta”
-        await supabase.auth.api.deleteUser(userId, { shouldReauthenticate: false })
+        await supabase.auth.api.deleteUser(userId, {
+          shouldReauthenticate: false
+        })
         throw profileError
       }
 
-      // 4) Se veio referralCode, atualizamos o contador do “referrer”
       if (referralCode) {
-        // Procuramos o perfil cujo referral_code bate com o informado
         const { data: refProfile, error: findRefError } = await supabase
           .from('profiles')
           .select('id, referrals_count')
           .eq('referral_code', referralCode)
           .single()
 
-        if (findRefError) {
-          console.warn('Código de indicação inválido:', findRefError.message)
-        } else if (refProfile && refProfile.id) {
-          // Incrementa o contador
+        if (!findRefError && refProfile) {
           await supabase
             .from('profiles')
             .update({ referrals_count: refProfile.referrals_count + 1 })
@@ -98,8 +79,9 @@ export default function RegisterPage() {
         }
       }
 
-      // 5) Se tudo der certo, exibe mensagem de sucesso e redireciona após 1.5s
-      setSuccessMessage('Cadastro realizado com sucesso! Redirecionando para o dashboard…')
+      setSuccessMessage(
+        'Cadastro realizado com sucesso! Redirecionando para o dashboard…'
+      )
       setTimeout(() => {
         router.push('/dashboard')
       }, 1500)
@@ -112,7 +94,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <LayoutPublic>
+    <Layout>
       <div className="register-container">
         <h1>Cadastre-se no InvestPro</h1>
 
@@ -139,7 +121,9 @@ export default function RegisterPage() {
             required
           />
 
-          <label htmlFor="password">Senha (mínimo 6 caracteres):</label>
+          <label htmlFor="password">
+            Senha (mínimo 6 caracteres):
+          </label>
           <input
             id="password"
             type="password"
@@ -240,6 +224,6 @@ export default function RegisterPage() {
           }
         }
       `}</style>
-    </LayoutPublic>
+    </Layout>
   )
 }
