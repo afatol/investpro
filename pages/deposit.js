@@ -13,8 +13,10 @@ export default function DepositPage() {
     setError('')
     setLoading(true)
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+    const session = sessionData?.session
+
+    if (sessionError || !session) {
       window.location.href = '/login'
       return
     }
@@ -31,7 +33,7 @@ export default function DepositPage() {
       return
     }
 
-    const filePath = `${session.user.id}_${Date.now()}_${file.name}`
+    const filePath = `${session.user.id}_${Date.now()}_${encodeURIComponent(file.name)}`
     const { error: uploadError } = await supabase
       .storage
       .from('proofs')
@@ -43,10 +45,12 @@ export default function DepositPage() {
       return
     }
 
-    const { data: { publicUrl } } = supabase
+    const { data: publicUrlData } = supabase
       .storage
       .from('proofs')
       .getPublicUrl(filePath)
+
+    const publicUrl = publicUrlData?.publicUrl
 
     const { error: insertError } = await supabase
       .from('transactions')
@@ -55,7 +59,8 @@ export default function DepositPage() {
         amount: parseFloat(amount),
         type: 'deposit',
         proof_url: publicUrl,
-        status: 'pending'
+        status: 'pending',
+        created_at: new Date().toISOString() // útil se sua tabela tiver RLS baseada em data
       }])
 
     if (insertError) {
