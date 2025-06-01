@@ -18,6 +18,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchUserAndDados = async () => {
       try {
+        // 1) Verifica sessão
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
         const session = sessionData?.session
 
@@ -28,21 +29,29 @@ export default function DashboardPage() {
 
         const userId = session.user.id
 
+        // 2) Busca perfil completo (incluindo referral_code e referrals_count)
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
           .maybeSingle()
 
-        if (profileError || !profile) {
+        if (profileError) {
           console.error('Erro ao buscar perfil:', profileError)
           setError('Erro ao carregar perfil do usuário.')
           setLoading(false)
           return
         }
+        if (!profile) {
+          setError('Perfil não encontrado.')
+          setLoading(false)
+          return
+        }
 
+        // Junta dados de Auth com dados de profiles
         setUser({ ...session.user, ...profile })
 
+        // 3) Busca transações aprovadas do usuário
         const { data: transacoes, error: txError } = await supabase
           .from('transactions')
           .select('type, amount')
@@ -56,13 +65,14 @@ export default function DashboardPage() {
           console.error('Erro ao buscar transações:', txError)
           setError((prev) => prev + '\nErro ao carregar transações.')
         } else {
-          transacoes?.forEach((t) => {
+          (transacoes || []).forEach((t) => {
             const valorNum = parseFloat(t.amount) || 0
             if (t.type === 'deposit') depositos += valorNum
             if (t.type === 'withdraw') saques += valorNum
           })
         }
 
+        // 4) Busca rendimentos aplicados
         const { data: rendimentos, error: rendError } = await supabase
           .from('rendimentos_aplicados')
           .select('valor')
@@ -73,10 +83,10 @@ export default function DashboardPage() {
           console.error('Erro ao buscar rendimentos:', rendError)
           setError((prev) => prev + '\nErro ao carregar rendimentos.')
         } else {
-          totalRendimentos = rendimentos?.reduce(
+          totalRendimentos = (rendimentos || []).reduce(
             (acc, r) => acc + parseFloat(r.valor || 0),
             0
-          ) || 0
+          )
         }
 
         setTotais({ depositos, saques, rendimentos: totalRendimentos })
