@@ -1,7 +1,9 @@
+// pages/forgot-password.js
+
 import { useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '../lib/supabaseClient'
-import Nav from '../components/Nav'
+import Layout from '../components/Layout'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -22,8 +24,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="container">
-      <Nav />
+    <Layout>
       <div className="forgot-container">
         <h1>Esqueci minha senha</h1>
 
@@ -63,6 +64,7 @@ export default function ForgotPassword() {
         h1 {
           text-align: center;
           margin-bottom: 1.5rem;
+          color: #1976D2;
         }
 
         .form-forgot {
@@ -90,6 +92,7 @@ export default function ForgotPassword() {
           border-radius: 6px;
           font-size: 1rem;
           cursor: pointer;
+          font-weight: bold;
         }
 
         .btn:hover {
@@ -113,6 +116,15 @@ export default function ForgotPassword() {
           margin-top: 1rem;
         }
 
+        .back-link a {
+          color: #1976D2;
+          text-decoration: none;
+        }
+
+        .back-link a:hover {
+          text-decoration: underline;
+        }
+
         @media (max-width: 480px) {
           .forgot-container {
             margin: 1rem;
@@ -120,6 +132,6 @@ export default function ForgotPassword() {
           }
         }
       `}</style>
-    </div>
+    </Layout>
   )
 }
