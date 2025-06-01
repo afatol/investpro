@@ -1,5 +1,4 @@
 // pages/deposit.js
-
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabaseClient'
@@ -63,22 +62,25 @@ export default function DepositPage() {
       return
     }
 
-    // 2) Recupera a URL pública se quiser exibir depois (opcional)
+    // 2) Recupera a URL pública (opcional)
     const { data: { publicUrl } } = supabase.storage
       .from('proofs')
       .getPublicUrl(filePath)
 
-    // 3) Insere a transação no banco
+    // 3) Insere a transação no banco usando as colunas corretas:
+    //    - "valor" em vez de "amount"
+    //    - "tipo" em vez de "type"
+    //    - "data" em vez de "created_at"
     const { error: insertError } = await supabase
       .from('transactions')
       .insert([
         {
           user_id: userId,
-          amount: parseFloat(amount),
-          type: 'deposit',
+          valor: parseFloat(amount),
+          tipo: 'deposit',
           proof_url: publicUrl,
           status: 'pending',
-          data: new Date().toISOString()
+          data: new Date().toISOString(),
         },
       ])
 
@@ -174,6 +176,7 @@ export default function DepositPage() {
           color: #b00020;
           font-weight: bold;
           text-align: center;
+          margin-bottom: 1rem;
         }
         @media (max-width: 600px) {
           .form-wrapper {
