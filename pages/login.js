@@ -87,8 +87,6 @@ export default function Login() {
           </div>
         </div>
       </div>
-
-      <style jsx>{/* ... estilo mantido igual ao seu código anterior ... */}</style>
-    </Layout>
+   </Layout>
   )
 }
