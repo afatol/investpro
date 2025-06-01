@@ -22,44 +22,48 @@ export default function RendimentosPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError || !session) return window.location.href = '/login'
+      try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+        const session = sessionData?.session
+        if (sessionError || !session) return window.location.href = '/login'
 
-      const userId = session.user.id
-      const { data, error } = await supabase
-        .from('rendimentos_aplicados')
-        .select('*')
-        .eq('user_id', userId)
-        .order('data', { ascending: true })
+        const userId = session.user.id
 
-      if (error) {
-        console.error(error)
-        setError('Erro ao buscar rendimentos')
-      } else {
-        setRendimentos(data || [])
+        const { data, error } = await supabase
+          .from('rendimentos_aplicados')
+          .select('*')
+          .eq('user_id', userId)
+          .order('data', { ascending: true })
+
+        if (error) {
+          console.error(error)
+          setError('Erro ao buscar rendimentos')
+        } else {
+          setRendimentos(data || [])
+        }
+      } catch (err) {
+        console.error('Erro inesperado:', err)
+        setError('Erro ao carregar rendimentos.')
+      } finally {
+        setLoading(false)
       }
-
-      setLoading(false)
     }
 
     fetchData()
   }, [])
 
-  // Processa para gráfico e total
   const grouped = {}
   let total = 0
 
-  rendimentos.forEach(r => {
+  rendimentos.forEach((r) => {
     const dia = new Date(r.data).toLocaleDateString('pt-BR')
     if (!grouped[dia]) grouped[dia] = { name: dia, rendimento: 0, indicacao: 0 }
 
-    if (r.tipo === 'indicacao') {
-      grouped[dia].indicacao += parseFloat(r.valor)
-    } else {
-      grouped[dia].rendimento += parseFloat(r.valor)
-    }
+    const valor = parseFloat(r.valor || 0)
+    if (r.tipo === 'indicacao') grouped[dia].indicacao += valor
+    else grouped[dia].rendimento += valor
 
-    total += parseFloat(r.valor)
+    total += valor
   })
 
   const chartData = Object.values(grouped)
@@ -85,7 +89,7 @@ export default function RendimentosPage() {
                   <BarChart data={chartData} margin={{ top: 10, right: 20, left: -10, bottom: 30 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-30} textAnchor="end" />
-                    <YAxis tickFormatter={(v) => formatUSD(v)} tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={formatUSD} tick={{ fontSize: 12 }} />
                     <Tooltip formatter={(value) => formatUSD(value)} />
                     <Legend />
                     <Bar dataKey="rendimento" name="Rendimento" fill="#4CAF50" />
