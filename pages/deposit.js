@@ -36,7 +36,7 @@ export default function DepositPage() {
     }
 
     if (!amount || parseFloat(amount) <= 0) {
-      setError('Informe um valor de depósito válido.')
+      setError('Informe um amount de depósito válido.')
       setLoading(false)
       return
     }
@@ -73,7 +73,7 @@ export default function DepositPage() {
       .insert([
         {
           user_id: userId,
-          valor: parseFloat(amount),
+          amount: parseFloat(amount),
           type: 'deposit',
           proof_url: publicUrl,
           status: 'pending',
@@ -97,7 +97,7 @@ export default function DepositPage() {
         {error && <p className="error">{error}</p>}
 
         <form onSubmit={handleSubmit} className="deposit-form">
-          <label htmlFor="amount">Valor (USD):</label>
+          <label htmlFor="amount">amount (USD):</label>
           <input
             id="amount"
             type="number"
