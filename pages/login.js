@@ -1,6 +1,8 @@
+// pages/login.js
+
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/router'
+import Link from 'next/link'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
 
@@ -11,42 +13,20 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const ensureProfile = async (user) => {
-    const { data: existingProfile, error: fetchError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single()
-
-    if (!existingProfile && !fetchError) {
-      const { error: insertError } = await supabase.from('profiles').insert({
-        id: user.id,
-        email: user.email,
-        name: user.user_metadata?.full_name || ''
-      })
-
-      if (insertError) {
-        console.error('Erro ao criar perfil:', insertError)
-      }
-    }
-  }
-
   const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password: senha
     })
 
-    if (error) {
-      setError(error.message)
+    if (signInError) {
+      setError(signInError.message)
       setLoading(false)
     } else {
-      const user = data.user
-      await ensureProfile(user)
       router.push('/dashboard')
     }
   }
@@ -63,14 +43,14 @@ export default function Login() {
               type="email"
               placeholder="Email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
             <input
               type="password"
               placeholder="Senha"
               value={senha}
-              onChange={e => setSenha(e.target.value)}
+              onChange={(e) => setSenha(e.target.value)}
               required
             />
             <button type="submit" disabled={loading}>
@@ -87,6 +67,91 @@ export default function Login() {
           </div>
         </div>
       </div>
-   </Layout>
+
+      <style jsx>{`
+        .login-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 2rem 1rem;
+        }
+
+        .form-card {
+          width: 100%;
+          max-width: 400px;
+          background: #fff;
+          padding: 2rem;
+          border-radius: 12px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+          text-align: center;
+          margin-bottom: 1.5rem;
+          color: #1976d2;
+        }
+
+        input {
+          width: 100%;
+          padding: 0.75rem;
+          margin-bottom: 1rem;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          font-size: 1rem;
+        }
+
+        button {
+          width: 100%;
+          padding: 0.75rem;
+          background-color: #1976d2;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 1rem;
+          cursor: pointer;
+        }
+
+        button:hover {
+          background-color: #125ca1;
+        }
+
+        button:disabled {
+          background-color: #aaa;
+          cursor: not-allowed;
+        }
+
+        .error {
+          color: red;
+          margin-bottom: 1rem;
+          text-align: center;
+          font-weight: bold;
+        }
+
+        .links {
+          margin-top: 1.5rem;
+          text-align: center;
+          font-size: 0.95rem;
+        }
+
+        .links a {
+          color: #1976d2;
+          text-decoration: none;
+        }
+
+        .links a:hover {
+          text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+          .form-card {
+            padding: 1.5rem;
+          }
+
+          h1 {
+            font-size: 1.5rem;
+          }
+        }
+      `}</style>
+    </Layout>
   )
 }
