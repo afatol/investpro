@@ -67,17 +67,14 @@ export default function DepositPage() {
       .from('proofs')
       .getPublicUrl(filePath)
 
-    // 3) Insere a transação no banco usando as colunas corretas:
-    //    - "valor" em vez de "amount"
-    //    - "tipo" em vez de "type"
-    //    - "data" em vez de "created_at"
+  
     const { error: insertError } = await supabase
       .from('transactions')
       .insert([
         {
           user_id: userId,
           valor: parseFloat(amount),
-          tipo: 'deposit',
+          type: 'deposit',
           proof_url: publicUrl,
           status: 'pending',
           data: new Date().toISOString(),
