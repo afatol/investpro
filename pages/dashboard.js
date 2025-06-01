@@ -1,11 +1,9 @@
-// pages/dashboard.js
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { supabase } from '../lib/supabaseClient'
 import Layout from '../components/Layout'
 
-// Função utilitária para formatar valores em USD
 const formatUSD = (value) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 
@@ -20,38 +18,31 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchUserAndDados = async () => {
       try {
-        // 1) Verifica a sessão do usuário
-        const {
-          data: { session },
-          error: sessionError
-        } = await supabase.auth.getSession()
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+        const session = sessionData?.session
 
         if (sessionError || !session) {
-          // Se não estiver logado, redireciona para /login
           router.replace('/login')
           return
         }
 
         const userId = session.user.id
 
-        // 2) Busca perfil completo
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
           .maybeSingle()
 
-        if (profileError) {
+        if (profileError || !profile) {
           console.error('Erro ao buscar perfil:', profileError)
-          setError('Falha ao carregar perfil.')
+          setError('Erro ao carregar perfil do usuário.')
           setLoading(false)
           return
-        } else {
-          const enrichedUser = { ...session.user, ...profile }
-          setUser(enrichedUser)
         }
 
-        // 3) Busca totais de transações aprovadas (deposit e withdraw)
+        setUser({ ...session.user, ...profile })
+
         const { data: transacoes, error: txError } = await supabase
           .from('transactions')
           .select('type, amount')
@@ -63,23 +54,15 @@ export default function DashboardPage() {
 
         if (txError) {
           console.error('Erro ao buscar transações:', txError)
-          setError('Falha ao carregar transações.')
-        } else if (transacoes) {
-          transacoes.forEach((t) => {
+          setError((prev) => prev + '\nErro ao carregar transações.')
+        } else {
+          transacoes?.forEach((t) => {
             const valorNum = parseFloat(t.amount) || 0
-            if (t.type === 'deposit') {
-              depositos += valorNum
-            }
-            if (t.type === 'withdraw') {
-              saques += valorNum
-            }
-            // Se seu banco ainda usar 'depósito' e 'saque' em português, ajuste para:
-            // if (t.type === 'depósito') depositos += valorNum
-            // if (t.type === 'saque')    saques += valorNum
+            if (t.type === 'deposit') depositos += valorNum
+            if (t.type === 'withdraw') saques += valorNum
           })
         }
 
-        // 4) Busca rendimentos aplicados
         const { data: rendimentos, error: rendError } = await supabase
           .from('rendimentos_aplicados')
           .select('valor')
@@ -88,23 +71,18 @@ export default function DashboardPage() {
         let totalRendimentos = 0
         if (rendError) {
           console.error('Erro ao buscar rendimentos:', rendError)
-          setError((prev) => prev + ' Falha ao carregar rendimentos.')
-        } else if (rendimentos) {
-          totalRendimentos = rendimentos.reduce(
+          setError((prev) => prev + '\nErro ao carregar rendimentos.')
+        } else {
+          totalRendimentos = rendimentos?.reduce(
             (acc, r) => acc + parseFloat(r.valor || 0),
             0
-          )
+          ) || 0
         }
 
-        // 5) Atualiza state com os totais apurados
-        setTotais({
-          depositos,
-          saques,
-          rendimentos: totalRendimentos
-        })
+        setTotais({ depositos, saques, rendimentos: totalRendimentos })
       } catch (err) {
         console.error('Erro inesperado no dashboard:', err)
-        setError('Erro inesperado ao carregar dados.')
+        setError('Erro inesperado ao carregar dados do painel.')
       } finally {
         setLoading(false)
       }
@@ -139,11 +117,6 @@ export default function DashboardPage() {
     )
   }
 
-  if (!user) {
-    // Caso não haja usuário, nada a exibir (redirecionamento já tratado)
-    return null
-  }
-
   return (
     <Layout>
       <div className="dashboard-container">
@@ -153,12 +126,10 @@ export default function DashboardPage() {
           <section className="card">
             <h2>Indicações</h2>
             <p>
-              Seu código:{' '}
-              <strong>{user.referral_code || 'N/A'}</strong>
+              Seu código: <strong>{user.referral_code || 'N/A'}</strong>
             </p>
             <p>
-              Você indicou{' '}
-              <strong>{user.referrals_count || 0}</strong> usuários.
+              Você indicou <strong>{user.referrals_count || 0}</strong> usuários.
             </p>
             <button onClick={handleCopy}>
               {copied ? 'Copiado!' : 'Copiar meu código'}
