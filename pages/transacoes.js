@@ -20,11 +20,9 @@ export default function TransacoesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1) Verifica sessão do usuário
-        const {
-          data: { session },
-          error: sessionError
-        } = await supabase.auth.getSession()
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+        const session = sessionData?.session
+
         if (sessionError || !session) {
           window.location.href = '/login'
           return
@@ -32,8 +30,6 @@ export default function TransacoesPage() {
 
         const userId = session.user.id
 
-        // 2) Busca na tabela "transactions" apenas colunas que existem:
-        //    id, amount, type, status, data
         const { data, error: fetchError } = await supabase
           .from('transactions')
           .select('id, amount, type, status, data')
@@ -43,7 +39,7 @@ export default function TransacoesPage() {
         if (fetchError) throw fetchError
         setTransacoes(data || [])
       } catch (err) {
-        console.error(err)
+        console.error('Erro ao buscar transações:', err)
         setError('Erro ao buscar transações.')
       } finally {
         setLoading(false)
@@ -53,10 +49,8 @@ export default function TransacoesPage() {
     fetchData()
   }, [])
 
-  // Filtra apenas as transações aprovadas
   const aprovadas = transacoes.filter((t) => t.status === 'approved')
 
-  // Agrupa aprovações por data (coluna "data")
   const agrupado = {}
   aprovadas.forEach((t) => {
     const dia = new Date(t.data).toLocaleDateString('pt-BR')
@@ -68,8 +62,7 @@ export default function TransacoesPage() {
   })
   const chartData = Object.values(agrupado)
 
-  // Função para formatar em USD
-  const formatUSD = (v) => `US$ ${Number(v).toFixed(2)}`
+  const formatUSD = (v) => `US$ ${Number(v || 0).toFixed(2)}`
 
   return (
     <Layout>
@@ -135,8 +128,7 @@ export default function TransacoesPage() {
             padding: 2rem 1rem;
           }
 
-          h1,
-          h2 {
+          h1, h2 {
             text-align: center;
             margin-bottom: 1rem;
           }
@@ -154,8 +146,7 @@ export default function TransacoesPage() {
             border-collapse: collapse;
           }
 
-          th,
-          td {
+          th, td {
             padding: 0.8rem;
             text-align: center;
             border-bottom: 1px solid #ddd;
@@ -176,11 +167,17 @@ export default function TransacoesPage() {
           .status.pending {
             background-color: #fff3cd;
             color: #856404;
+            font-weight: bold;
+            border-radius: 4px;
+            padding: 0.3rem 0.6rem;
           }
 
           .status.rejected {
             background-color: #f8d7da;
             color: #721c24;
+            font-weight: bold;
+            border-radius: 4px;
+            padding: 0.3rem 0.6rem;
           }
 
           .error {
