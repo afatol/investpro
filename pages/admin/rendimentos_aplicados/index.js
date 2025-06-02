@@ -15,7 +15,7 @@ export default function AdminRendimentosPage() {
     fetchRendimentos()
   }, [])
 
-  // Reaplica filtro sempre que 'filtro' ou 'rendimentos' mudarem
+  // Reaplica filtro sempre que ‘filtro’ ou ‘rendimentos’ mudarem
   useEffect(() => {
     if (!filtro.trim()) {
       setFilteredRendimentos(rendimentos)
@@ -24,6 +24,7 @@ export default function AdminRendimentosPage() {
       const filtrados = rendimentos.filter((r) => {
         const userName = r.profiles?.name?.toLowerCase() || ''
         const userEmail = r.profiles?.email?.toLowerCase() || ''
+        const userPhone = r.profiles?.phone?.toLowerCase() || ''
         const amountMatch = Number(r.valor)
           .toFixed(2)
           .toString()
@@ -36,6 +37,7 @@ export default function AdminRendimentosPage() {
         return (
           userName.includes(term) ||
           userEmail.includes(term) ||
+          userPhone.includes(term) ||
           amountMatch ||
           dateMatch ||
           origemMatch
@@ -45,7 +47,7 @@ export default function AdminRendimentosPage() {
     }
   }, [filtro, rendimentos])
 
-  // 1) Buscar rendimentos junto ao relacionamento profiles (name, email, phone)
+  // 1) Busca rendimentos, usando “rendimentos_aplicados_user_id_fkey” para embutir “profiles”
   const fetchRendimentos = async () => {
     setError('')
     setLoading(true)
@@ -58,7 +60,7 @@ export default function AdminRendimentosPage() {
           valor,
           origem,
           data,
-          profiles ( name, email, phone )
+          profiles!rendimentos_aplicados_user_id_fkey ( name, email, phone )
         `)
         .order('data', { ascending: false })
 
@@ -102,7 +104,7 @@ export default function AdminRendimentosPage() {
         <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
           <input
             type="text"
-            placeholder="Filtrar por Usuário, Email, Origem ou Data..."
+            placeholder="Filtrar por Usuário, Email, Telefone, Origem ou Data..."
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
             style={{
