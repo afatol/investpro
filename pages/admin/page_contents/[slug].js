@@ -80,12 +80,14 @@ export default function AdminPageContentsEdit() {
           Editar Página: {slug}
         </h1>
         {error && (
-          <p style={{
-            color: '#c00',
-            textAlign: 'center',
-            marginBottom: '1rem',
-            fontWeight: 'bold'
-          }}>
+          <p
+            style={{
+              color: '#c00',
+              textAlign: 'center',
+              marginBottom: '1rem',
+              fontWeight: 'bold'
+            }}
+          >
             {error}
           </p>
         )}
