@@ -7,15 +7,16 @@ import { supabase } from '../../../lib/supabaseClient'
 export default function AdminRendimentosPage() {
   const [rendimentos, setRendimentos] = useState([])
   const [filteredRendimentos, setFilteredRendimentos] = useState([])
-  const [filtro, setFiltro] = useState('')    // texto de filtro
+  const [filtro, setFiltro] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     fetchRendimentos()
   }, [])
 
-  // Aplica filtro local sempre que 'filtro' ou 'rendimentos' mudarem
+  // Reaplica filtro sempre que ‘filtro’ ou ‘rendimentos’ mudarem
   useEffect(() => {
     if (!filtro.trim()) {
       setFilteredRendimentos(rendimentos)
@@ -47,7 +48,7 @@ export default function AdminRendimentosPage() {
     }
   }, [filtro, rendimentos])
 
-  // 1) Busca todos os rendimentos aplicados + dados de perfil (name, email, phone)
+  // 1) Busca rendimentos + relacionamento com profiles (name, email, phone)
   const fetchRendimentos = async () => {
     setError('')
     setLoading(true)
@@ -75,6 +76,28 @@ export default function AdminRendimentosPage() {
     }
   }
 
+  // 2) Chama a RPC para atualizar rendimento de todos
+  const handleUpdateAll = async () => {
+    if (!confirm('Deseja realmente atualizar o rendimento de todos os usuários para hoje?')) {
+      return
+    }
+    setUpdating(true)
+    try {
+      // Ajuste esse nome de RPC para a sua função no Supabase
+      const { error: rpcErr } = await supabase.rpc('apply_daily_rendimentos')
+      if (rpcErr) throw rpcErr
+
+      // Recarrega a lista após gerar novos lançamentos
+      await fetchRendimentos()
+      alert('Rendimentos atualizados com sucesso!')
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao atualizar rendimentos: ' + err.message)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   if (loading) {
     return (
       <AdminLayout>
@@ -86,7 +109,9 @@ export default function AdminRendimentosPage() {
   if (error) {
     return (
       <AdminLayout>
-        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>{error}</p>
+        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
+          {error}
+        </p>
       </AdminLayout>
     )
   }
@@ -95,6 +120,25 @@ export default function AdminRendimentosPage() {
     <AdminLayout>
       <div style={{ maxWidth: '1000px', margin: 'auto', padding: '2rem 1rem' }}>
         <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Gerenciar Rendimentos Aplicados</h1>
+
+        {/* Botão de ação para atualizar todos os rendimentos do dia */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <button
+            onClick={handleUpdateAll}
+            disabled={updating}
+            style={{
+              background: updating ? '#aaa' : '#1976d2',
+              color: '#fff',
+              padding: '0.5rem 1rem',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '1rem',
+              cursor: updating ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {updating ? 'Atualizando...' : 'Atualizar Rendimentos de Hoje'}
+          </button>
+        </div>
 
         {/* Campo de filtro */}
         <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
