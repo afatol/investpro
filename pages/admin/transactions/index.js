@@ -6,7 +6,8 @@ import { supabase } from '../../../lib/supabaseClient'
 
 export default function AdminTransactionsPage() {
   const [transacoes, setTransacoes] = useState([])
-  const [signedUrls, setSignedUrls] = useState({}) // para guardar URL temporária de cada ID
+  const [filteredTransacoes, setFilteredTransacoes] = useState([])
+  const [filtro, setFiltro] = useState('')       // estado para armazenar o texto do filtro
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -14,7 +15,28 @@ export default function AdminTransactionsPage() {
     fetchTransactions()
   }, [])
 
-  // 1) Busca todas as transações (incluindo proof_url, mas que agora será apenas o "path")
+  // Reaplica o filtro local toda vez que 'filtro' ou 'transacoes' mudar
+  useEffect(() => {
+    if (!filtro.trim()) {
+      setFilteredTransacoes(transacoes)
+    } else {
+      const term = filtro.toLowerCase()
+      const filtrados = transacoes.filter((t) => {
+        // Converte cada campo relevante para string e compara
+        const userIdMatch = t.user_id?.toLowerCase().includes(term)
+        const typeMatch = t.type?.toLowerCase().includes(term)
+        const statusMatch = t.status?.toLowerCase().includes(term)
+        const dateMatch = new Date(t.data)
+          .toLocaleString('pt-BR')
+          .toLowerCase()
+          .includes(term)
+        return userIdMatch || typeMatch || statusMatch || dateMatch
+      })
+      setFilteredTransacoes(filtrados)
+    }
+  }, [filtro, transacoes])
+
+  // 1) Busca todas as transações
   const fetchTransactions = async () => {
     setError('')
     setLoading(true)
@@ -26,8 +48,7 @@ export default function AdminTransactionsPage() {
 
       if (fetchErr) throw fetchErr
       setTransacoes(data || [])
-      // Assim que buscar, vamos gerar signed URLs para cada uma que tiver proof_url
-      generateAllSignedUrls(data || [])
+      setFilteredTransacoes(data || [])
     } catch (err) {
       console.error(err)
       setError('Falha ao carregar transações.')
@@ -36,30 +57,7 @@ export default function AdminTransactionsPage() {
     }
   }
 
-  // 2) Gera signed URLs (válidos 60s) para cada transação que tiver proof_url
-  const generateAllSignedUrls = async (lista) => {
-    const urls = {}
-    await Promise.all(
-      lista.map(async (t) => {
-        if (t.proof_url) {
-          // t.proof_url aqui deve ser apenas o "path" dentro do bucket proofs,
-          // ex: "ce8d37fe-…_arquivo.pdf"
-          const { data: signedData, error: signedErr } = await supabase.storage
-            .from('proofs')   // nome exato do bucket
-            .createSignedUrl(t.proof_url, 60) // URL válida por 60 segundos
-          if (!signedErr && signedData?.signedUrl) {
-            urls[t.id] = signedData.signedUrl
-          } else {
-            console.error('Erro ao gerar signed URL:', signedErr)
-            urls[t.id] = null
-          }
-        }
-      })
-    )
-    setSignedUrls(urls)
-  }
-
-  // 3) Aprovar transação
+  // 2) Aprova a transação (status = "approved")
   const handleApprove = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -75,7 +73,7 @@ export default function AdminTransactionsPage() {
     }
   }
 
-  // 4) Rejeitar transação
+  // 3) Rejeita a transação (status = "rejected")
   const handleReject = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -114,6 +112,24 @@ export default function AdminTransactionsPage() {
       <div style={{ maxWidth: '1000px', margin: 'auto', padding: '2rem 1rem' }}>
         <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Gerenciar Transações</h1>
 
+        {/* Campo de filtro */}
+        <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
+          <input
+            type="text"
+            placeholder="Filtrar por ID, Usuário, Tipo ou Status..."
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            style={{
+              padding: '0.5rem 0.75rem',
+              width: '100%',
+              maxWidth: '350px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '1rem',
+            }}
+          />
+        </div>
+
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -128,8 +144,20 @@ export default function AdminTransactionsPage() {
             </tr>
           </thead>
           <tbody>
-            {transacoes.map((t) => {
-              const signedURL = signedUrls[t.id] || null
+            {filteredTransacoes.map((t) => {
+              // Monta URL para comprovante (privado ou signed url se for o caso)
+              let publicURL = null
+
+              if (t.proof_url) {
+                if (t.proof_url.startsWith('http://') || t.proof_url.startsWith('https://')) {
+                  publicURL = t.proof_url
+                } else {
+                  const { publicURL: url } = supabase.storage
+                    .from('proofs')
+                    .getPublicUrl(t.proof_url)
+                  publicURL = url
+                }
+              }
 
               return (
                 <tr key={t.id}>
@@ -140,8 +168,8 @@ export default function AdminTransactionsPage() {
                   <td style={tdStyle}>{t.status}</td>
                   <td style={tdStyle}>{new Date(t.data).toLocaleString('pt-BR')}</td>
                   <td style={tdStyle}>
-                    {signedURL ? (
-                      <a href={signedURL} target="_blank" rel="noopener noreferrer">
+                    {publicURL ? (
+                      <a href={publicURL} target="_blank" rel="noopener noreferrer">
                         Ver Comprovante
                       </a>
                     ) : (
@@ -176,7 +204,7 @@ export default function AdminTransactionsPage() {
               )
             })}
 
-            {transacoes.length === 0 && (
+            {filteredTransacoes.length === 0 && (
               <tr>
                 <td colSpan="8" style={{ textAlign: 'center' }}>Nenhuma transação encontrada.</td>
               </tr>
