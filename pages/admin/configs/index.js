@@ -1,11 +1,8 @@
 // File: ./pages/admin/configs/index.js
 
 import { useEffect, useState } from 'react'
-
-// Subir duas pastas para alcançar /components/admin/AdminLayout
-import AdminLayout from '../../components/admin/AdminLayout'
-// Subir duas pastas para alcançar /lib/supabaseClient
-import { supabase } from '../../lib/supabaseClient'
+import AdminLayout from '../../../components/admin/AdminLayout'
+import { supabase } from '../../../lib/supabaseClient'
 
 export default function AdminConfigsPage() {
   const [rendimentoDiario, setRendimentoDiario] = useState('')
