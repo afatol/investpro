@@ -40,16 +40,21 @@ export default function AdminPageContentsNew() {
       <div style={{ maxWidth: '700px', margin: 'auto', padding: '2rem 1rem' }}>
         <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Criar Nova Página</h1>
         {error && (
-          <p style={{
-            color: '#c00',
-            textAlign: 'center',
-            marginBottom: '1rem',
-            fontWeight: 'bold'
-          }}>
+          <p
+            style={{
+              color: '#c00',
+              textAlign: 'center',
+              marginBottom: '1rem',
+              fontWeight: 'bold',
+            }}
+          >
             {error}
           </p>
         )}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+        >
           <label htmlFor="slug" style={{ fontWeight: 600 }}>
             Slug (único, ex: “sobre”):
           </label>
@@ -63,11 +68,13 @@ export default function AdminPageContentsNew() {
               padding: '0.5rem',
               border: '1px solid #ccc',
               borderRadius: '6px',
-              fontSize: '1rem'
+              fontSize: '1rem',
             }}
           />
 
-          <label htmlFor="title" style={{ fontWeight: 600 }}>Título:</label>
+          <label htmlFor="title" style={{ fontWeight: 600 }}>
+            Título:
+          </label>
           <input
             id="title"
             type="text"
@@ -77,7 +84,7 @@ export default function AdminPageContentsNew() {
               padding: '0.5rem',
               border: '1px solid #ccc',
               borderRadius: '6px',
-              fontSize: '1rem'
+              fontSize: '1rem',
             }}
           />
 
@@ -93,7 +100,7 @@ export default function AdminPageContentsNew() {
               padding: '0.5rem',
               border: '1px solid #ccc',
               borderRadius: '6px',
-              fontSize: '1rem'
+              fontSize: '1rem',
             }}
           />
 
@@ -107,7 +114,7 @@ export default function AdminPageContentsNew() {
               border: 'none',
               borderRadius: '6px',
               fontSize: '1rem',
-              cursor: saving ? 'not-allowed' : 'pointer'
+              cursor: saving ? 'not-allowed' : 'pointer',
             }}
           >
             {saving ? 'Salvando...' : 'Criar Página'}
