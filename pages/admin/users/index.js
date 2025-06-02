@@ -8,7 +8,7 @@ import { supabase } from '../../../lib/supabaseClient'
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([])
   const [filteredUsers, setFilteredUsers] = useState([])
-  const [filtro, setFiltro] = useState('')    // texto do filtro
+  const [filtro, setFiltro] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -16,7 +16,7 @@ export default function AdminUsersPage() {
     fetchUsers()
   }, [])
 
-  // Aplica filtro local sempre que 'filtro' ou 'users' mudar
+  // Sempre que mudar o filtro ou a lista original, recalcula o filteredUsers
   useEffect(() => {
     if (!filtro.trim()) {
       setFilteredUsers(users)
@@ -27,20 +27,22 @@ export default function AdminUsersPage() {
         const emailMatch = u.email?.toLowerCase().includes(term)
         const codeMatch = u.referral_code?.toLowerCase().includes(term)
         const planMatch = u.plan_id?.toLowerCase().includes(term)
-        return nameMatch || emailMatch || codeMatch || planMatch
+        const phoneMatch = u.phone?.toLowerCase().includes(term)
+        return nameMatch || emailMatch || codeMatch || planMatch || phoneMatch
       })
       setFilteredUsers(filtrados)
     }
   }, [filtro, users])
 
-  // 1) Busca todos os usuários
+  // 1) Busca id, name, email, phone, is_admin, referral_code, plan_id e data de criação
   const fetchUsers = async () => {
     setError('')
     setLoading(true)
     try {
+      // Observe que agora adicionamos 'phone' no select
       const { data, error: fetchErr } = await supabase
         .from('profiles')
-        .select('id, name, email, is_admin, referral_code, plan_id, data')
+        .select('id, name, email, phone, is_admin, referral_code, plan_id, data')
         .order('data', { ascending: false })
 
       if (fetchErr) throw fetchErr
@@ -81,7 +83,7 @@ export default function AdminUsersPage() {
         <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
           <input
             type="text"
-            placeholder="Filtrar por Nome, Email, Código ou Plano..."
+            placeholder="Filtrar por Nome, Email, Telefone, Código ou Plano..."
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
             style={{
@@ -100,6 +102,7 @@ export default function AdminUsersPage() {
             <tr>
               <th style={thStyle}>Nome</th>
               <th style={thStyle}>Email</th>
+              <th style={thStyle}>Telefone</th>
               <th style={thStyle}>Admin?</th>
               <th style={thStyle}>Código</th>
               <th style={thStyle}>Plano</th>
@@ -112,6 +115,7 @@ export default function AdminUsersPage() {
               <tr key={u.id}>
                 <td style={tdStyle}>{u.name || '—'}</td>
                 <td style={tdStyle}>{u.email}</td>
+                <td style={tdStyle}>{u.phone || '—'}</td>
                 <td style={tdStyle}>{u.is_admin ? 'Sim' : 'Não'}</td>
                 <td style={tdStyle}>{u.referral_code || '—'}</td>
                 <td style={tdStyle}>{u.plan_id || '—'}</td>
@@ -126,7 +130,7 @@ export default function AdminUsersPage() {
 
             {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center' }}>Nenhum usuário encontrado.</td>
+                <td colSpan="8" style={{ textAlign: 'center' }}>Nenhum usuário encontrado.</td>
               </tr>
             )}
           </tbody>
