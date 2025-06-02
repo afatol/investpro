@@ -14,10 +14,10 @@ export default function AdminUsersPage() {
     const fetchUsers = async () => {
       setError('')
       try {
-        // Puxa id, name, email, is_admin, referral_code, plan_id e data de criação
+        // Puxa id, name, email, phone, referral_code, plan_id e data de criação
         const { data, error: fetchErr } = await supabase
           .from('profiles')
-          .select('id, name, email, is_admin, referral_code, plan_id, data')
+          .select('id, name, email, phone, referral_code, plan_id, data')
           .order('data', { ascending: false })
 
         if (fetchErr) throw fetchErr
@@ -60,7 +60,7 @@ export default function AdminUsersPage() {
             <tr>
               <th style={thStyle}>Nome</th>
               <th style={thStyle}>Email</th>
-              <th style={thStyle}>Admin?</th>
+              <th style={thStyle}>Telefone</th>      {/* Nova coluna */}
               <th style={thStyle}>Código</th>
               <th style={thStyle}>Plano</th>
               <th style={thStyle}>Criado Em</th>
@@ -72,12 +72,11 @@ export default function AdminUsersPage() {
               <tr key={u.id}>
                 <td style={tdStyle}>{u.name || '—'}</td>
                 <td style={tdStyle}>{u.email}</td>
-                <td style={tdStyle}>{u.is_admin ? 'Sim' : 'Não'}</td>
+                <td style={tdStyle}>{u.phone || '—'}</td>  {/* Exibe phone ou “—” */}
                 <td style={tdStyle}>{u.referral_code || '—'}</td>
                 <td style={tdStyle}>{u.plan_id || '—'}</td>
                 <td style={tdStyle}>{new Date(u.data).toLocaleString('pt-BR')}</td>
                 <td style={tdStyle}>
-                  {/* Para futura edição: pages/admin/users/[id].js */}
                   <Link href={`/admin/users/${u.id}`}>
                     <a style={btnEditStyle}>Editar</a>
                   </Link>
