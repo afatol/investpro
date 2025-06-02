@@ -7,30 +7,52 @@ import { supabase } from '../../../lib/supabaseClient'
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([])
+  const [filteredUsers, setFilteredUsers] = useState([])
+  const [filtro, setFiltro] = useState('')    // texto do filtro
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      setError('')
-      try {
-        // Puxa id, name, email, phone, referral_code, plan_id e data de criação
-        const { data, error: fetchErr } = await supabase
-          .from('profiles')
-          .select('id, name, email, phone, referral_code, plan_id, data')
-          .order('data', { ascending: false })
-
-        if (fetchErr) throw fetchErr
-        setUsers(data || [])
-      } catch (err) {
-        console.error(err)
-        setError('Falha ao carregar lista de usuários.')
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchUsers()
   }, [])
+
+  // Aplica filtro local sempre que 'filtro' ou 'users' mudar
+  useEffect(() => {
+    if (!filtro.trim()) {
+      setFilteredUsers(users)
+    } else {
+      const term = filtro.toLowerCase()
+      const filtrados = users.filter((u) => {
+        const nameMatch = u.name?.toLowerCase().includes(term)
+        const emailMatch = u.email?.toLowerCase().includes(term)
+        const codeMatch = u.referral_code?.toLowerCase().includes(term)
+        const planMatch = u.plan_id?.toLowerCase().includes(term)
+        return nameMatch || emailMatch || codeMatch || planMatch
+      })
+      setFilteredUsers(filtrados)
+    }
+  }, [filtro, users])
+
+  // 1) Busca todos os usuários
+  const fetchUsers = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      const { data, error: fetchErr } = await supabase
+        .from('profiles')
+        .select('id, name, email, is_admin, referral_code, plan_id, data')
+        .order('data', { ascending: false })
+
+      if (fetchErr) throw fetchErr
+      setUsers(data || [])
+      setFilteredUsers(data || [])
+    } catch (err) {
+      console.error(err)
+      setError('Falha ao carregar lista de usuários.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -55,12 +77,30 @@ export default function AdminUsersPage() {
       <div style={{ maxWidth: '1000px', margin: 'auto', padding: '2rem 1rem' }}>
         <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Gerenciar Usuários</h1>
 
+        {/* Campo de filtro */}
+        <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
+          <input
+            type="text"
+            placeholder="Filtrar por Nome, Email, Código ou Plano..."
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            style={{
+              padding: '0.5rem 0.75rem',
+              width: '100%',
+              maxWidth: '350px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '1rem',
+            }}
+          />
+        </div>
+
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th style={thStyle}>Nome</th>
               <th style={thStyle}>Email</th>
-              <th style={thStyle}>Telefone</th>      {/* Nova coluna */}
+              <th style={thStyle}>Admin?</th>
               <th style={thStyle}>Código</th>
               <th style={thStyle}>Plano</th>
               <th style={thStyle}>Criado Em</th>
@@ -68,11 +108,11 @@ export default function AdminUsersPage() {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <tr key={u.id}>
                 <td style={tdStyle}>{u.name || '—'}</td>
                 <td style={tdStyle}>{u.email}</td>
-                <td style={tdStyle}>{u.phone || '—'}</td>  {/* Exibe phone ou “—” */}
+                <td style={tdStyle}>{u.is_admin ? 'Sim' : 'Não'}</td>
                 <td style={tdStyle}>{u.referral_code || '—'}</td>
                 <td style={tdStyle}>{u.plan_id || '—'}</td>
                 <td style={tdStyle}>{new Date(u.data).toLocaleString('pt-BR')}</td>
@@ -84,11 +124,9 @@ export default function AdminUsersPage() {
               </tr>
             ))}
 
-            {users.length === 0 && (
+            {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center' }}>
-                  Nenhum usuário encontrado.
-                </td>
+                <td colSpan="7" style={{ textAlign: 'center' }}>Nenhum usuário encontrado.</td>
               </tr>
             )}
           </tbody>
