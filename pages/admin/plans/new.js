@@ -8,7 +8,7 @@ import { supabase } from '../../../lib/supabaseClient'
 export default function AdminPlansNewPage() {
   const router = useRouter()
   const [name, setName] = useState('')
-  const [taxa, setTaxa] = useState('')       // estado para a taxa de rendimento
+  const [taxa, setTaxa] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -19,7 +19,7 @@ export default function AdminPlansNewPage() {
       setError('Informe o nome do plano.')
       return
     }
-    // Validar taxa: se estiver vazia, assume 0
+    // Validar taxa: se não preenchida, assume 0
     const valorTaxa = parseFloat(taxa)
     if (taxa.trim() !== '' && (isNaN(valorTaxa) || valorTaxa < 0)) {
       setError('Insira uma taxa válida (número ≥ 0).')
@@ -30,10 +30,12 @@ export default function AdminPlansNewPage() {
 
     const { error: insertErr } = await supabase
       .from('plans')
-      .insert([{ 
-        name: name.trim(),
-        taxa_rendimento: isNaN(valorTaxa) ? 0 : valorTaxa 
-      }])
+      .insert([
+        {
+          name: name.trim(),
+          taxa_rendimento: isNaN(valorTaxa) ? 0 : valorTaxa,
+        },
+      ])
 
     if (insertErr) {
       console.error(insertErr)
