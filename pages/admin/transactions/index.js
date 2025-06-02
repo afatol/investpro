@@ -24,6 +24,7 @@ export default function AdminTransactionsPage() {
       const filtrados = transacoes.filter((t) => {
         const userName = t.profiles?.name?.toLowerCase() || ''
         const userEmail = t.profiles?.email?.toLowerCase() || ''
+        const userPhone = t.profiles?.phone?.toLowerCase() || ''
         const typeMatch = t.type?.toLowerCase().includes(term)
         const statusMatch = t.status?.toLowerCase().includes(term)
         const dateMatch = new Date(t.data)
@@ -37,6 +38,7 @@ export default function AdminTransactionsPage() {
         return (
           userName.includes(term) ||
           userEmail.includes(term) ||
+          userPhone.includes(term) ||
           typeMatch ||
           statusMatch ||
           dateMatch ||
@@ -47,7 +49,7 @@ export default function AdminTransactionsPage() {
     }
   }, [filtro, transacoes])
 
-  // 1) Busca transações junto ao relacionamento com profiles (name, email, phone)
+  // 1) Busca transações, usando explicitamente a FK "transactions_user_id_fkey" para embutir "profiles"
   const fetchTransactions = async () => {
     setError('')
     setLoading(true)
@@ -62,7 +64,7 @@ export default function AdminTransactionsPage() {
           status,
           data,
           proof_url,
-          profiles ( name, email, phone )
+          profiles!transactions_user_id_fkey ( name, email, phone )
         `)
         .order('data', { ascending: false })
 
@@ -183,17 +185,13 @@ export default function AdminTransactionsPage() {
                   publicURL = t.proof_url
                 } else {
                   try {
-                    // Proteção para eventuais bucket ausente ou nome de arquivo errado
                     const {
                       data: { publicUrl },
                       error: urlError
                     } = supabase.storage.from('proofs').getPublicUrl(t.proof_url)
 
                     if (urlError) {
-                      console.error(
-                        'Erro ao obter publicUrl:',
-                        urlError.message
-                      )
+                      console.error('Erro ao obter publicUrl:', urlError.message)
                     } else {
                       publicURL = publicUrl
                     }
@@ -212,9 +210,7 @@ export default function AdminTransactionsPage() {
                   <td style={tdStyle}>{t.type}</td>
                   <td style={tdStyle}>{Number(t.amount).toFixed(2)}</td>
                   <td style={tdStyle}>{t.status}</td>
-                  <td style={tdStyle}>
-                    {new Date(t.data).toLocaleString('pt-BR')}
-                  </td>
+                  <td style={tdStyle}>{new Date(t.data).toLocaleString('pt-BR')}</td>
                   <td style={tdStyle}>
                     {publicURL ? (
                       <a
