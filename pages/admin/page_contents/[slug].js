@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import Layout from '../../../components/Layout'
+import AdminLayout from '../../../components/admin/AdminLayout'
 import { supabase } from '../../../lib/supabaseClient'
 
 export default function AdminPageContentsEdit() {
@@ -17,6 +17,7 @@ export default function AdminPageContentsEdit() {
 
   useEffect(() => {
     if (!slug) return
+
     const fetchPage = async () => {
       setError('')
       try {
@@ -66,87 +67,76 @@ export default function AdminPageContentsEdit() {
 
   if (loading) {
     return (
-      <Layout>
+      <AdminLayout>
         <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando dados...</p>
-      </Layout>
+      </AdminLayout>
     )
   }
 
   return (
-    <Layout>
-      <div className="admin-page-edit">
-        <h1>Editar Página: {slug}</h1>
-        {error && <p className="error">{error}</p>}
-        <form onSubmit={handleSave} className="form-page">
-          <label htmlFor="title">Título:</label>
+    <AdminLayout>
+      <div style={{ maxWidth: '700px', margin: 'auto', padding: '2rem 1rem' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          Editar Página: {slug}
+        </h1>
+        {error && (
+          <p style={{
+            color: '#c00',
+            textAlign: 'center',
+            marginBottom: '1rem',
+            fontWeight: 'bold'
+          }}>
+            {error}
+          </p>
+        )}
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <label htmlFor="title" style={{ fontWeight: 600 }}>Título:</label>
           <input
             id="title"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            style={{
+              padding: '0.5rem',
+              border: '1px solid #ccc',
+              borderRadius: '6px',
+              fontSize: '1rem'
+            }}
           />
 
-          <label htmlFor="body">Conteúdo (HTML ou Markdown):</label>
+          <label htmlFor="body" style={{ fontWeight: 600 }}>
+            Conteúdo (HTML ou Markdown):
+          </label>
           <textarea
             id="body"
             rows="6"
             value={body}
             onChange={(e) => setBody(e.target.value)}
+            style={{
+              padding: '0.5rem',
+              border: '1px solid #ccc',
+              borderRadius: '6px',
+              fontSize: '1rem'
+            }}
           />
 
-          <button type="submit" disabled={saving}>
+          <button
+            type="submit"
+            disabled={saving}
+            style={{
+              background: '#1976d2',
+              color: '#fff',
+              padding: '0.75rem',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '1rem',
+              cursor: saving ? 'not-allowed' : 'pointer'
+            }}
+          >
             {saving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         </form>
       </div>
-
-      <style jsx>{`
-        .admin-page-edit {
-          max-width: 700px;
-          margin: auto;
-          padding: 2rem 1rem;
-        }
-        h1 {
-          text-align: center;
-          margin-bottom: 1.5rem;
-        }
-        .error {
-          color: #c00;
-          text-align: center;
-          margin-bottom: 1rem;
-        }
-        .form-page {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        label {
-          font-weight: 600;
-        }
-        input,
-        textarea {
-          padding: 0.5rem;
-          border: 1px solid #ccc;
-          border-radius: 6px;
-          font-size: 1rem;
-        }
-        button {
-          background: #1976d2;
-          color: #fff;
-          padding: 0.75rem;
-          border: none;
-          border-radius: 6px;
-          font-size: 1rem;
-          cursor: pointer;
-        }
-        button:hover {
-          background: #125ca1;
-        }
-        button:disabled {
-          background: #aaa;
-          cursor: not-allowed;
-        }
-      `}</style>
-    </Layout>
+    </AdminLayout>
   )
 }
