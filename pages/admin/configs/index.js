@@ -1,8 +1,11 @@
 // File: ./pages/admin/configs/index.js
 
 import { useEffect, useState } from 'react'
-import Layout from '../../../components/Layout'
-import { supabase } from '../../../lib/supabaseClient'
+
+// Subir duas pastas para alcançar /components/admin/AdminLayout
+import AdminLayout from '../../components/admin/AdminLayout'
+// Subir duas pastas para alcançar /lib/supabaseClient
+import { supabase } from '../../lib/supabaseClient'
 
 export default function AdminConfigsPage() {
   const [rendimentoDiario, setRendimentoDiario] = useState('')
@@ -15,7 +18,6 @@ export default function AdminConfigsPage() {
     const fetchConfigs = async () => {
       setError('')
       try {
-        // Puxa a primeira (única) linha de admin_configs
         const { data, error: fetchErr } = await supabase
           .from('admin_configs')
           .select('id, rendimento_diario, texto_aviso')
@@ -44,7 +46,6 @@ export default function AdminConfigsPage() {
     setSaving(true)
 
     try {
-      // Vamos assumir que há zero ou 1 registro. Se existe, fazemos update; se não, insert.
       const { data: existing, error: fetchErr } = await supabase
         .from('admin_configs')
         .select('id')
@@ -54,7 +55,6 @@ export default function AdminConfigsPage() {
       if (fetchErr) throw fetchErr
 
       if (existing) {
-        // Já existe, faz update
         const { error: updErr } = await supabase
           .from('admin_configs')
           .update({
@@ -65,7 +65,6 @@ export default function AdminConfigsPage() {
 
         if (updErr) throw updErr
       } else {
-        // Não existe, faz insert
         const { error: insErr } = await supabase
           .from('admin_configs')
           .insert([
@@ -75,7 +74,6 @@ export default function AdminConfigsPage() {
         if (insErr) throw insErr
       }
 
-      // Ao salvar, exibimos apenas mensagem breve ou você pode redirecionar
       alert('Configurações salvas com sucesso!')
     } catch (err) {
       console.error(err)
@@ -87,20 +85,36 @@ export default function AdminConfigsPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <AdminLayout>
         <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando configurações...</p>
-      </Layout>
+      </AdminLayout>
     )
   }
 
   return (
-    <Layout>
-      <div className="admin-configs">
-        <h1>Configurações Gerais</h1>
-        {error && <p className="error">{error}</p>}
+    <AdminLayout>
+      <div style={{ maxWidth: '600px', margin: 'auto', padding: '2rem 1rem' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Configurações Gerais</h1>
+        {error && (
+          <p
+            style={{
+              color: '#c00',
+              textAlign: 'center',
+              marginBottom: '1rem',
+              fontWeight: 'bold',
+            }}
+          >
+            {error}
+          </p>
+        )}
 
-        <form onSubmit={handleSave} className="form-configs">
-          <label htmlFor="rendimentoDiario">Rendimento Diário (%):</label>
+        <form
+          onSubmit={handleSave}
+          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+        >
+          <label htmlFor="rendimentoDiario" style={{ fontWeight: 600 }}>
+            Rendimento Diário (%):
+          </label>
           <input
             id="rendimentoDiario"
             type="number"
@@ -108,69 +122,47 @@ export default function AdminConfigsPage() {
             value={rendimentoDiario}
             onChange={(e) => setRendimentoDiario(e.target.value)}
             required
+            style={{
+              padding: '0.5rem',
+              border: '1px solid #ccc',
+              borderRadius: '6px',
+              fontSize: '1rem',
+            }}
           />
 
-          <label htmlFor="textoAviso">Texto de Aviso (HTML/TEXTO):</label>
+          <label htmlFor="textoAviso" style={{ fontWeight: 600 }}>
+            Texto de Aviso (HTML/TEXTO):
+          </label>
           <textarea
             id="textoAviso"
             rows="4"
             value={textoAviso}
             onChange={(e) => setTextoAviso(e.target.value)}
+            style={{
+              padding: '0.5rem',
+              border: '1px solid #ccc',
+              borderRadius: '6px',
+              fontSize: '1rem',
+            }}
           />
 
-          <button type="submit" disabled={saving}>
+          <button
+            type="submit"
+            disabled={saving}
+            style={{
+              background: '#1976d2',
+              color: '#fff',
+              padding: '0.75rem',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '1rem',
+              cursor: saving ? 'not-allowed' : 'pointer',
+            }}
+          >
             {saving ? 'Salvando...' : 'Salvar Configurações'}
           </button>
         </form>
       </div>
-
-      <style jsx>{`
-        .admin-configs {
-          max-width: 600px;
-          margin: auto;
-          padding: 2rem 1rem;
-        }
-        h1 {
-          text-align: center;
-          margin-bottom: 1.5rem;
-        }
-        .error {
-          color: #c00;
-          text-align: center;
-          margin-bottom: 1rem;
-        }
-        .form-configs {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        label {
-          font-weight: 600;
-        }
-        input,
-        textarea {
-          padding: 0.5rem;
-          border: 1px solid #ccc;
-          border-radius: 6px;
-          font-size: 1rem;
-        }
-        button {
-          background: #1976d2;
-          color: #fff;
-          padding: 0.75rem;
-          border: none;
-          border-radius: 6px;
-          font-size: 1rem;
-          cursor: pointer;
-        }
-        button:hover {
-          background: #125ca1;
-        }
-        button:disabled {
-          background: #aaa;
-          cursor: not-allowed;
-        }
-      `}</style>
-    </Layout>
+    </AdminLayout>
   )
 }
