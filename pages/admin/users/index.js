@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Layout from '../../../components/Layout'
+import AdminLayout from '../../../components/admin/AdminLayout'
 import { supabase } from '../../../lib/supabaseClient'
 
 export default function AdminUsersPage() {
@@ -34,52 +34,52 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <AdminLayout>
         <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando usuários...</p>
-      </Layout>
+      </AdminLayout>
     )
   }
 
   if (error) {
     return (
-      <Layout>
+      <AdminLayout>
         <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
           {error}
         </p>
-      </Layout>
+      </AdminLayout>
     )
   }
 
   return (
-    <Layout>
-      <div className="admin-users">
-        <h1>Gerenciar Usuários</h1>
+    <AdminLayout>
+      <div style={{ maxWidth: '1000px', margin: 'auto', padding: '2rem 1rem' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Gerenciar Usuários</h1>
 
-        <table>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>Email</th>
-              <th>Admin?</th>
-              <th>Código</th>
-              <th>Plano</th>
-              <th>Criado Em</th>
-              <th>Ações</th>
+              <th style={thStyle}>Nome</th>
+              <th style={thStyle}>Email</th>
+              <th style={thStyle}>Admin?</th>
+              <th style={thStyle}>Código</th>
+              <th style={thStyle}>Plano</th>
+              <th style={thStyle}>Criado Em</th>
+              <th style={thStyle}>Ações</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td>{u.name || '—'}</td>
-                <td>{u.email}</td>
-                <td>{u.is_admin ? 'Sim' : 'Não'}</td>
-                <td>{u.referral_code || '—'}</td>
-                <td>{u.plan_id || '—'}</td>
-                <td>{new Date(u.data).toLocaleString()}</td>
-                <td>
-                  {/* Exemplo de link para edição futura (você pode criar pages/admin/users/[id].js) */}
+                <td style={tdStyle}>{u.name || '—'}</td>
+                <td style={tdStyle}>{u.email}</td>
+                <td style={tdStyle}>{u.is_admin ? 'Sim' : 'Não'}</td>
+                <td style={tdStyle}>{u.referral_code || '—'}</td>
+                <td style={tdStyle}>{u.plan_id || '—'}</td>
+                <td style={tdStyle}>{new Date(u.data).toLocaleString('pt-BR')}</td>
+                <td style={tdStyle}>
+                  {/* Para futura edição: pages/admin/users/[id].js */}
                   <Link href={`/admin/users/${u.id}`}>
-                    <a className="btn-edit">Editar</a>
+                    <a style={btnEditStyle}>Editar</a>
                   </Link>
                 </td>
               </tr>
@@ -95,43 +95,28 @@ export default function AdminUsersPage() {
           </tbody>
         </table>
       </div>
-
-      <style jsx>{`
-        .admin-users {
-          max-width: 1000px;
-          margin: auto;
-          padding: 2rem 1rem;
-        }
-        h1 {
-          text-align: center;
-          margin-bottom: 1.5rem;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        th,
-        td {
-          padding: 0.75rem;
-          border: 1px solid #ddd;
-          text-align: left;
-        }
-        th {
-          background: #f5f5f5;
-        }
-        .btn-edit {
-          display: inline-block;
-          padding: 0.25rem 0.5rem;
-          background: #1976d2;
-          color: #fff;
-          border-radius: 4px;
-          text-decoration: none;
-          font-size: 0.9rem;
-        }
-        .btn-edit:hover {
-          background: #125ca1;
-        }
-      `}</style>
-    </Layout>
+    </AdminLayout>
   )
+}
+
+const thStyle = {
+  padding: '0.75rem',
+  borderBottom: '1px solid #ddd',
+  textAlign: 'left',
+  background: '#f5f5f5',
+}
+
+const tdStyle = {
+  padding: '0.75rem',
+  borderBottom: '1px solid #eee',
+}
+
+const btnEditStyle = {
+  display: 'inline-block',
+  padding: '0.25rem 0.5rem',
+  background: '#1976d2',
+  color: '#fff',
+  borderRadius: '4px',
+  textDecoration: 'none',
+  fontSize: '0.9rem',
 }
