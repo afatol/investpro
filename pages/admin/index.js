@@ -1,159 +1,245 @@
-// File: ./pages/admin/configs/index.js
+// File: ./pages/admin/index.js
 
 import { useEffect, useState } from 'react'
-import AdminLayout from '../../../components/admin/AdminLayout'
-import { supabase } from '../../../lib/supabaseClient'
+import Link from 'next/link'
+import { supabase } from '../../lib/supabaseClient'
+import AdminLayout from '../../components/admin/AdminLayout'
 
-export default function AdminConfigsPage() {
-  const [rendimentoDiario, setRendimentoDiario] = useState('')
-  const [textoAviso, setTextoAviso] = useState('')
+export default function AdminHomePage() {
+  const [totais, setTotais] = useState({
+    users: 0,
+    transactions: 0,
+    pendingTransactions: 0,
+    rendimentos: 0,
+  })
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const fetchConfigs = async () => {
+    const fetchTotals = async () => {
       setError('')
       try {
-        const { data, error: fetchErr } = await supabase
-          .from('admin_configs')
-          .select('id, rendimento_diario, texto_aviso')
-          .order('id', { ascending: true })
-          .limit(1)
-          .maybeSingle()
+        // total de usuários
+        const { count: usersCount, error: usersErr } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+        if (usersErr) throw usersErr
 
-        if (fetchErr) throw fetchErr
-        if (data) {
-          setRendimentoDiario(data.rendimento_diario ?? '')
-          setTextoAviso(data.texto_aviso ?? '')
-        }
+        // total de transações (qualquer status)
+        const { count: txCount, error: txErr } = await supabase
+          .from('transactions')
+          .select('id', { count: 'exact', head: true })
+        if (txErr) throw txErr
+
+        // total de transações pendentes
+        const { count: pendingCount, error: penErr } = await supabase
+          .from('transactions')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending')
+        if (penErr) throw penErr
+
+        // total de rendimentos aplicados
+        const { count: rendCount, error: rendErr } = await supabase
+          .from('rendimentos_aplicados')
+          .select('id', { count: 'exact', head: true })
+        if (rendErr) throw rendErr
+
+        setTotais({
+          users: usersCount,
+          transactions: txCount,
+          pendingTransactions: pendingCount,
+          rendimentos: rendCount,
+        })
       } catch (err) {
         console.error(err)
-        setError('Falha ao carregar configurações.')
+        setError('Falha ao carregar dados gerais.')
       } finally {
         setLoading(false)
       }
     }
-    fetchConfigs()
+    fetchTotals()
   }, [])
-
-  const handleSave = async (e) => {
-    e.preventDefault()
-    setError('')
-    setSaving(true)
-
-    try {
-      const { data: existing, error: fetchErr } = await supabase
-        .from('admin_configs')
-        .select('id')
-        .limit(1)
-        .maybeSingle()
-
-      if (fetchErr) throw fetchErr
-
-      if (existing) {
-        const { error: updErr } = await supabase
-          .from('admin_configs')
-          .update({
-            rendimento_diario: parseFloat(rendimentoDiario) || 0,
-            texto_aviso: textoAviso,
-          })
-          .eq('id', existing.id)
-
-        if (updErr) throw updErr
-      } else {
-        const { error: insErr } = await supabase
-          .from('admin_configs')
-          .insert([
-            { rendimento_diario: parseFloat(rendimentoDiario) || 0, texto_aviso: textoAviso },
-          ])
-
-        if (insErr) throw insErr
-      }
-
-      alert('Configurações salvas com sucesso!')
-    } catch (err) {
-      console.error(err)
-      setError('Não foi possível salvar configurações.')
-    } finally {
-      setSaving(false)
-    }
-  }
 
   if (loading) {
     return (
       <AdminLayout>
-        <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando configurações...</p>
+        <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando painel...</p>
+      </AdminLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <p style={{ textAlign: 'center', marginTop: '2rem', color: 'red' }}>{error}</p>
       </AdminLayout>
     )
   }
 
   return (
     <AdminLayout>
-      <div style={{ maxWidth: '600px', margin: 'auto', padding: '2rem 1rem' }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Configurações Gerais</h1>
-        {error && (
-          <p style={{
-            color: '#c00',
+      <div style={{ maxWidth: '1000px', margin: 'auto', padding: '2rem 1rem' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '2rem' }}>Admin Dashboard</h1>
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '1.5rem',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            background: '#fff',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            padding: '1.5rem',
+            width: '220px',
             textAlign: 'center',
-            marginBottom: '1rem',
-            fontWeight: 'bold'
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)'
           }}>
-            {error}
-          </p>
-        )}
+            <h2>Usuários</h2>
+            <p style={{ fontSize: '1.5rem', margin: '0.5rem 0' }}>{totais.users}</p>
+            <Link href="/admin/users">
+              <a style={{
+                display: 'inline-block',
+                marginTop: '1rem',
+                padding: '0.5rem 1rem',
+                background: '#0070f3',
+                color: '#fff',
+                borderRadius: '6px',
+                textDecoration: 'none'
+              }}>
+                Gerenciar
+              </a>
+            </Link>
+          </div>
 
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <label htmlFor="rendimentoDiario" style={{ fontWeight: 600 }}>
-            Rendimento Diário (%):
-          </label>
-          <input
-            id="rendimentoDiario"
-            type="number"
-            step="0.01"
-            value={rendimentoDiario}
-            onChange={(e) => setRendimentoDiario(e.target.value)}
-            required
-            style={{
-              padding: '0.5rem',
-              border: '1px solid #ccc',
-              borderRadius: '6px',
-              fontSize: '1rem'
-            }}
-          />
+          <div style={{
+            background: '#fff',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            padding: '1.5rem',
+            width: '220px',
+            textAlign: 'center',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)'
+          }}>
+            <h2>Transações</h2>
+            <p style={{ fontSize: '1.5rem', margin: '0.5rem 0' }}>{totais.transactions}</p>
+            <p>Pendentes: {totais.pendingTransactions}</p>
+            <Link href="/admin/transactions">
+              <a style={{
+                display: 'inline-block',
+                marginTop: '1rem',
+                padding: '0.5rem 1rem',
+                background: '#0070f3',
+                color: '#fff',
+                borderRadius: '6px',
+                textDecoration: 'none'
+              }}>
+                Gerenciar
+              </a>
+            </Link>
+          </div>
 
-          <label htmlFor="textoAviso" style={{ fontWeight: 600 }}>
-            Texto de Aviso (HTML/TEXTO):
-          </label>
-          <textarea
-            id="textoAviso"
-            rows="4"
-            value={textoAviso}
-            onChange={(e) => setTextoAviso(e.target.value)}
-            style={{
-              padding: '0.5rem',
-              border: '1px solid #ccc',
-              borderRadius: '6px',
-              fontSize: '1rem'
-            }}
-          />
+          <div style={{
+            background: '#fff',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            padding: '1.5rem',
+            width: '220px',
+            textAlign: 'center',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)'
+          }}>
+            <h2>Rendimentos</h2>
+            <p style={{ fontSize: '1.5rem', margin: '0.5rem 0' }}>{totais.rendimentos}</p>
+            <Link href="/admin/rendimentos_aplicados">
+              <a style={{
+                display: 'inline-block',
+                marginTop: '1rem',
+                padding: '0.5rem 1rem',
+                background: '#0070f3',
+                color: '#fff',
+                borderRadius: '6px',
+                textDecoration: 'none'
+              }}>
+                Gerenciar
+              </a>
+            </Link>
+          </div>
 
-          <button
-            type="submit"
-            disabled={saving}
-            style={{
-              background: '#1976d2',
-              color: '#fff',
-              padding: '0.75rem',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '1rem',
-              cursor: saving ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {saving ? 'Salvando...' : 'Salvar Configurações'}
-          </button>
-        </form>
+          <div style={{
+            background: '#fff',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            padding: '1.5rem',
+            width: '220px',
+            textAlign: 'center',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)'
+          }}>
+            <h2>Planos</h2>
+            <Link href="/admin/plans">
+              <a style={{
+                display: 'inline-block',
+                marginTop: '1rem',
+                padding: '0.5rem 1rem',
+                background: '#0070f3',
+                color: '#fff',
+                borderRadius: '6px',
+                textDecoration: 'none'
+              }}>
+                Gerenciar
+              </a>
+            </Link>
+          </div>
+
+          <div style={{
+            background: '#fff',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            padding: '1.5rem',
+            width: '220px',
+            textAlign: 'center',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)'
+          }}>
+            <h2>Configurações</h2>
+            <Link href="/admin/configs">
+              <a style={{
+                display: 'inline-block',
+                marginTop: '1rem',
+                padding: '0.5rem 1rem',
+                background: '#0070f3',
+                color: '#fff',
+                borderRadius: '6px',
+                textDecoration: 'none'
+              }}>
+                Gerenciar
+              </a>
+            </Link>
+          </div>
+
+          <div style={{
+            background: '#fff',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            padding: '1.5rem',
+            width: '220px',
+            textAlign: 'center',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)'
+          }}>
+            <h2>Páginas</h2>
+            <Link href="/admin/page_contents">
+              <a style={{
+                display: 'inline-block',
+                marginTop: '1rem',
+                padding: '0.5rem 1rem',
+                background: '#0070f3',
+                color: '#fff',
+                borderRadius: '6px',
+                textDecoration: 'none'
+              }}>
+                Gerenciar
+              </a>
+            </Link>
+          </div>
+        </div>
       </div>
     </AdminLayout>
   )
