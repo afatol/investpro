@@ -1,3 +1,5 @@
+// File: ./pages/admin/index.js
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
@@ -17,26 +19,26 @@ export default function AdminDashboard() {
     const fetchTotals = async () => {
       setError('')
       try {
-        // total de usuários
+        // 1) Contar usuários
         const { count: usersCount, error: usersErr } = await supabase
           .from('profiles')
           .select('id', { count: 'exact', head: true })
         if (usersErr) throw usersErr
 
-        // total de transações (qualquer status)
+        // 2) Contar transações (todas)
         const { count: txCount, error: txErr } = await supabase
           .from('transactions')
           .select('id', { count: 'exact', head: true })
         if (txErr) throw txErr
 
-        // total de transações pendentes
+        // 3) Contar transações pendentes
         const { count: pendingCount, error: penErr } = await supabase
           .from('transactions')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'pending')
         if (penErr) throw penErr
 
-        // total de rendimentos aplicados
+        // 4) Contar rendimentos aplicados
         const { count: rendCount, error: rendErr } = await supabase
           .from('rendimentos_aplicados')
           .select('id', { count: 'exact', head: true })
@@ -158,4 +160,3 @@ export default function AdminDashboard() {
     </Layout>
   )
 }
-
