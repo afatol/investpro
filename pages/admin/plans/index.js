@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Layout from '../../../components/Layout'
+import AdminLayout from '../../../components/admin/AdminLayout'
 import { supabase } from '../../../lib/supabaseClient'
 
 export default function AdminPlansPage() {
@@ -14,9 +14,10 @@ export default function AdminPlansPage() {
     const fetchPlans = async () => {
       setError('')
       try {
+        // Seleciona agora também a coluna taxa_rendimento
         const { data, error: fetchErr } = await supabase
           .from('plans')
-          .select('id, name')
+          .select('id, name, taxa_rendimento')
           .order('name', { ascending: true })
 
         if (fetchErr) throw fetchErr
@@ -33,47 +34,59 @@ export default function AdminPlansPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <AdminLayout>
         <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando planos...</p>
-      </Layout>
+      </AdminLayout>
     )
   }
 
   if (error) {
     return (
-      <Layout>
+      <AdminLayout>
         <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
           {error}
         </p>
-      </Layout>
+      </AdminLayout>
     )
   }
 
   return (
-    <Layout>
-      <div className="admin-plans">
-        <h1>Gerenciar Planos</h1>
+    <AdminLayout>
+      <div className="admin-plans" style={{ maxWidth: '700px', margin: 'auto', padding: '2rem 1rem' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Gerenciar Planos</h1>
 
-        <div className="btn-new">
+        <div className="btn-new" style={{ textAlign: 'right', marginBottom: '1rem' }}>
           <Link href="/admin/plans/new">
-            <a className="btn">+ Novo Plano</a>
+            <a
+              style={{
+                background: '#1976d2',
+                color: '#fff',
+                padding: '0.5rem 1rem',
+                borderRadius: '4px',
+                textDecoration: 'none',
+              }}
+            >
+              + Novo Plano
+            </a>
           </Link>
         </div>
 
-        <table>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th>Nome do Plano</th>
-              <th>Ações</th>
+              <th style={thStyle}>Nome do Plano</th>
+              <th style={thStyle}>Taxa (%)</th>
+              <th style={thStyle}>Ações</th>
             </tr>
           </thead>
           <tbody>
             {plans.map((p) => (
               <tr key={p.id}>
-                <td>{p.name}</td>
-                <td>
+                <td style={tdStyle}>{p.name}</td>
+                <td style={tdStyle}>{Number(p.taxa_rendimento).toFixed(2)}</td>
+                <td style={tdStyle}>
                   <Link href={`/admin/plans/${p.id}`}>
-                    <a className="btn-edit">Editar</a>
+                    <a style={btnEditStyle}>Editar</a>
                   </Link>
                 </td>
               </tr>
@@ -81,7 +94,7 @@ export default function AdminPlansPage() {
 
             {plans.length === 0 && (
               <tr>
-                <td colSpan="2" style={{ textAlign: 'center' }}>
+                <td colSpan="3" style={{ textAlign: 'center' }}>
                   Nenhum plano cadastrado.
                 </td>
               </tr>
@@ -89,57 +102,28 @@ export default function AdminPlansPage() {
           </tbody>
         </table>
       </div>
-
-      <style jsx>{`
-        .admin-plans {
-          max-width: 600px;
-          margin: auto;
-          padding: 2rem 1rem;
-        }
-        h1 {
-          text-align: center;
-          margin-bottom: 1.5rem;
-        }
-        .btn-new {
-          text-align: right;
-          margin-bottom: 1rem;
-        }
-        .btn {
-          background: #1976d2;
-          color: #fff;
-          padding: 0.5rem 1rem;
-          border-radius: 4px;
-          text-decoration: none;
-        }
-        .btn:hover {
-          background: #125ca1;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        th,
-        td {
-          padding: 0.75rem;
-          border: 1px solid #ddd;
-          text-align: left;
-        }
-        th {
-          background: #f5f5f5;
-        }
-        .btn-edit {
-          display: inline-block;
-          padding: 0.25rem 0.5rem;
-          background: #1976d2;
-          color: #fff;
-          border-radius: 4px;
-          text-decoration: none;
-          font-size: 0.9rem;
-        }
-        .btn-edit:hover {
-          background: #125ca1;
-        }
-      `}</style>
-    </Layout>
+    </AdminLayout>
   )
+}
+
+const thStyle = {
+  padding: '0.75rem',
+  borderBottom: '1px solid #ddd',
+  textAlign: 'left',
+  background: '#f5f5f5',
+}
+
+const tdStyle = {
+  padding: '0.75rem',
+  borderBottom: '1px solid #eee',
+}
+
+const btnEditStyle = {
+  display: 'inline-block',
+  padding: '0.25rem 0.5rem',
+  background: '#1976d2',
+  color: '#fff',
+  borderRadius: '4px',
+  textDecoration: 'none',
+  fontSize: '0.9rem',
 }
