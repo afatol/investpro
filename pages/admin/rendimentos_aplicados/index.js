@@ -10,6 +10,7 @@ export default function AdminRendimentosPage() {
   const [filtro, setFiltro] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [applying, setApplying] = useState(false) // para indicar quando estiver aplicando rendimentos
 
   useEffect(() => {
     fetchRendimentos()
@@ -77,6 +78,27 @@ export default function AdminRendimentosPage() {
     }
   }
 
+  // 2) Chamado quando clica “Aplicar Rendimentos Hoje”
+  const handleApplyToday = async () => {
+    setError('')
+    setApplying(true)
+    try {
+      // Aqui, supondo que exista uma função RPC no Supabase chamada "aplicar_rendimentos_diarios"
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('aplicar_rendimentos_diarios')
+      if (rpcErr) {
+        console.error('Erro ao aplicar rendimentos:', rpcErr.message)
+        throw rpcErr
+      }
+      // Após aplicar, refetch a lista
+      await fetchRendimentos()
+      alert('Rendimentos aplicados com sucesso!')
+    } catch (err) {
+      alert('Não foi possível aplicar rendimentos: ' + (err.message || err))
+    } finally {
+      setApplying(false)
+    }
+  }
+
   if (loading) {
     return (
       <AdminLayout>
@@ -98,7 +120,24 @@ export default function AdminRendimentosPage() {
   return (
     <AdminLayout>
       <div style={{ maxWidth: '1000px', margin: 'auto', padding: '2rem 1rem' }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Gerenciar Rendimentos Aplicados</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h1 style={{ margin: 0 }}>Gerenciar Rendimentos Aplicados</h1>
+          <button
+            onClick={handleApplyToday}
+            disabled={applying}
+            style={{
+              backgroundColor: '#1976d2',
+              color: '#fff',
+              border: 'none',
+              padding: '0.6rem 1.2rem',
+              borderRadius: '4px',
+              cursor: applying ? 'not-allowed' : 'pointer',
+              fontWeight: '500',
+            }}
+          >
+            {applying ? 'Aplicando...' : 'Aplicar Rendimentos Hoje'}
+          </button>
+        </div>
 
         {/* Campo de filtro */}
         <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
@@ -159,10 +198,10 @@ const thStyle = {
   padding: '0.75rem',
   borderBottom: '1px solid #ddd',
   textAlign: 'left',
-  background: '#f5f5f5'
+  background: '#f5f5f5',
 }
 
 const tdStyle = {
   padding: '0.75rem',
-  borderBottom: '1px solid #eee'
+  borderBottom: '1px solid #eee',
 }
