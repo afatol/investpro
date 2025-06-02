@@ -221,35 +221,6 @@ export default function AdminHomePage() {
               boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)',
             }}
           >
-            <h2>Configurações</h2>
-            <Link href="/admin/configs">
-              <a
-                style={{
-                  display: 'inline-block',
-                  marginTop: '1rem',
-                  padding: '0.5rem 1rem',
-                  background: '#0070f3',
-                  color: '#fff',
-                  borderRadius: '6px',
-                  textDecoration: 'none',
-                }}
-              >
-                Gerenciar
-              </a>
-            </Link>
-          </div>
-
-          <div
-            style={{
-              background: '#fff',
-              border: '1px solid #ddd',
-              borderRadius: '8px',
-              padding: '1.5rem',
-              width: '220px',
-              textAlign: 'center',
-              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)',
-            }}
-          >
             <h2>Páginas</h2>
             <Link href="/admin/page_contents">
               <a
