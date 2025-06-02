@@ -50,7 +50,7 @@ export default function AdminLayout({ children }) {
       <nav className="top-nav">
         <div className="nav-container">
           <Link href="/admin">
-            <div className="logo" style={{ cursor: 'pointer' }}>
+            <div className="logo" role="button">
               <Image
                 src="/logo.png"
                 alt="InvestPro Admin"
@@ -61,8 +61,7 @@ export default function AdminLayout({ children }) {
             </div>
           </Link>
 
-          {/* Aumentei gap para 2rem */}
-          <div className="nav-links" style={{ gap: '2rem' }}>
+          <div className="nav-links">
             {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
                 <a
@@ -76,7 +75,7 @@ export default function AdminLayout({ children }) {
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem' }}>
+          <div className="nav-actions">
             <Link href="/">
               <a className="btn outline">Voltar ao Site</a>
             </Link>
@@ -86,7 +85,6 @@ export default function AdminLayout({ children }) {
                 window.location.href = '/login'
               }}
               className="btn"
-              style={{ backgroundColor: '#e53935', marginLeft: '0.5rem' }}
             >
               Sair
             </button>
@@ -94,14 +92,155 @@ export default function AdminLayout({ children }) {
         </div>
       </nav>
 
-      {/* Main com marginTop para não sobrepor o nav */}
-      <main className="page-content" style={{ marginTop: '72px' }}>
-        {children}
-      </main>
+      <main className="page-content">{children}</main>
 
       <footer className="site-footer">
         © InvestPro Admin 2025 — Todos os direitos reservados
       </footer>
+
+      <style jsx>{`
+        .layout-wrapper {
+          display: flex;
+          flex-direction: column;
+          min-height: 100vh;
+        }
+
+        /* ============================
+           TOPO FIXO (MENU) 
+           ============================ */
+        .top-nav {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 64px; /* Altura do nav */
+          background-color: #1976d2;
+          color: #fff;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          z-index: 1000;
+        }
+
+        .nav-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 1.5rem;
+        }
+
+        .logo {
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+        }
+
+        /* ============================
+           LINKS DO MENU 
+           ============================ */
+        .nav-links {
+          display: flex;
+          gap: 2rem; /* espaçamento aumentado */
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .nav-link {
+          color: #fff;
+          text-decoration: none;
+          font-weight: 500;
+          padding: 0.4rem 0.6rem;
+          border-radius: 4px;
+          transition: background 0.2s ease-in-out;
+        }
+
+        .nav-link:hover {
+          background: rgba(255, 255, 255, 0.15);
+        }
+
+        .nav-link.active {
+          background-color: #fff;
+          color: #1976d2;
+          font-weight: bold;
+        }
+
+        /* ============================
+           AÇÕES DO MENU (Botões) 
+           ============================ */
+        .nav-actions {
+          display: flex;
+          gap: 1rem;
+        }
+
+        .btn {
+          background-color: #e53935;
+          color: #fff;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 4px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+        .btn:hover {
+          background-color: #ab2424;
+        }
+        .btn.outline {
+          background: #fff;
+          color: #1976d2;
+          border: 2px solid #fff;
+        }
+        .btn.outline:hover {
+          background: rgba(255, 255, 255, 0.9);
+        }
+
+        /* ============================
+           CORPO (MAIN), deslocado para baixo
+           ============================ */
+        .page-content {
+          margin-top: 64px; /* mesma altura do nav, para não sobrepor */
+          flex-grow: 1;
+          padding: 2rem 1rem;
+          max-width: 1200px;
+          width: 100%;
+          margin-left: auto;
+          margin-right: auto;
+        }
+
+        /* ============================
+           RODAPÉ 
+           ============================ */
+        .site-footer {
+          text-align: center;
+          font-size: 0.9rem;
+          padding: 1rem;
+          background-color: #fafafa;
+          border-top: 1px solid #eee;
+          margin-top: auto;
+        }
+
+        @media (max-width: 768px) {
+          .nav-links {
+            gap: 1rem;
+          }
+          .nav-container {
+            padding: 0 1rem;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .nav-links {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+          }
+          .logo img {
+            width: 110px;
+            height: auto;
+          }
+        }
+      `}</style>
     </div>
   )
 }
