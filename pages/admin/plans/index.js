@@ -14,10 +14,10 @@ export default function AdminPlansPage() {
     const fetchPlans = async () => {
       setError('')
       try {
-        // Seleciona agora também a coluna taxa_rendimento
+        // Removemos “taxa_rendimento” pois a coluna não existe e gerava 400
         const { data, error: fetchErr } = await supabase
           .from('plans')
-          .select('id, name, taxa_rendimento')
+          .select('id, name')
           .order('name', { ascending: true })
 
         if (fetchErr) throw fetchErr
@@ -43,19 +43,17 @@ export default function AdminPlansPage() {
   if (error) {
     return (
       <AdminLayout>
-        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
-          {error}
-        </p>
+        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>{error}</p>
       </AdminLayout>
     )
   }
 
   return (
     <AdminLayout>
-      <div className="admin-plans" style={{ maxWidth: '700px', margin: 'auto', padding: '2rem 1rem' }}>
+      <div style={{ maxWidth: '700px', margin: 'auto', padding: '2rem 1rem' }}>
         <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Gerenciar Planos</h1>
 
-        <div className="btn-new" style={{ textAlign: 'right', marginBottom: '1rem' }}>
+        <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
           <Link href="/admin/plans/new">
             <a
               style={{
@@ -75,7 +73,6 @@ export default function AdminPlansPage() {
           <thead>
             <tr>
               <th style={thStyle}>Nome do Plano</th>
-              <th style={thStyle}>Taxa (%)</th>
               <th style={thStyle}>Ações</th>
             </tr>
           </thead>
@@ -83,7 +80,6 @@ export default function AdminPlansPage() {
             {plans.map((p) => (
               <tr key={p.id}>
                 <td style={tdStyle}>{p.name}</td>
-                <td style={tdStyle}>{Number(p.taxa_rendimento).toFixed(2)}</td>
                 <td style={tdStyle}>
                   <Link href={`/admin/plans/${p.id}`}>
                     <a style={btnEditStyle}>Editar</a>
@@ -94,7 +90,7 @@ export default function AdminPlansPage() {
 
             {plans.length === 0 && (
               <tr>
-                <td colSpan="3" style={{ textAlign: 'center' }}>
+                <td colSpan="2" style={{ textAlign: 'center' }}>
                   Nenhum plano cadastrado.
                 </td>
               </tr>
