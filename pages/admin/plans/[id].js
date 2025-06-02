@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import Layout from '../../../components/Layout'
+import AdminLayout from '../../../components/admin/AdminLayout'
 import { supabase } from '../../../lib/supabaseClient'
 
 export default function AdminPlansEditPage() {
@@ -10,6 +10,7 @@ export default function AdminPlansEditPage() {
   const { id } = router.query
 
   const [name, setName] = useState('')
+  const [taxa, setTaxa] = useState('')          // estado para a taxa de rendimento
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -19,9 +20,10 @@ export default function AdminPlansEditPage() {
     const fetchPlan = async () => {
       setError('')
       try {
+        // Agora selecionamos também a coluna taxa_rendimento
         const { data, error: fetchErr } = await supabase
           .from('plans')
-          .select('name')
+          .select('name, taxa_rendimento')
           .eq('id', id)
           .maybeSingle()
 
@@ -31,7 +33,10 @@ export default function AdminPlansEditPage() {
           setLoading(false)
           return
         }
+
         setName(data.name)
+        // Converte para string para aparecer no input
+        setTaxa(data.taxa_rendimento !== null ? data.taxa_rendimento.toString() : '')
       } catch (err) {
         console.error(err)
         setError('Falha ao carregar o plano.')
@@ -50,94 +55,88 @@ export default function AdminPlansEditPage() {
       return
     }
     setSaving(true)
-    const { error: updateErr } = await supabase
-      .from('plans')
-      .update({ name: name.trim() })
-      .eq('id', id)
 
-    if (updateErr) {
-      console.error(updateErr)
+    try {
+      const { error: updateErr } = await supabase
+        .from('plans')
+        .update({
+          name: name.trim(),
+          taxa_rendimento: parseFloat(taxa) || 0,  // atualiza também a taxa
+        })
+        .eq('id', id)
+
+      if (updateErr) throw updateErr
+
+      router.push('/admin/plans')
+    } catch (err) {
+      console.error(err)
       setError('Não foi possível atualizar o plano.')
       setSaving(false)
-    } else {
-      router.push('/admin/plans')
     }
   }
 
   if (loading) {
     return (
-      <Layout>
+      <AdminLayout>
         <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando dados do plano...</p>
-      </Layout>
+      </AdminLayout>
     )
   }
 
   return (
-    <Layout>
-      <div className="admin-plans-edit">
-        <h1>Editar Plano</h1>
-        {error && <p className="error">{error}</p>}
-        <form onSubmit={handleSave} className="form-plan">
-          <label htmlFor="name">Nome do Plano:</label>
+    <AdminLayout>
+      <div style={{ maxWidth: '500px', margin: 'auto', padding: '2rem 1rem' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Editar Plano</h1>
+        {error && <p style={{ color: '#c00', textAlign: 'center', marginBottom: '1rem', fontWeight: 'bold' }}>{error}</p>}
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <label htmlFor="name" style={{ fontWeight: 600 }}>Nome do Plano:</label>
           <input
             id="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            style={{
+              padding: '0.5rem',
+              border: '1px solid #ccc',
+              borderRadius: '6px',
+              fontSize: '1rem',
+            }}
           />
-          <button type="submit" disabled={saving}>
+
+          <label htmlFor="taxa" style={{ fontWeight: 600 }}>Taxa de Rendimento (% ao dia):</label>
+          <input
+            id="taxa"
+            type="number"
+            step="0.01"
+            value={taxa}
+            onChange={(e) => setTaxa(e.target.value)}
+            placeholder="Ex: 0.10 para 0,1%"
+            style={{
+              padding: '0.5rem',
+              border: '1px solid #ccc',
+              borderRadius: '6px',
+              fontSize: '1rem',
+            }}
+          />
+
+          <button
+            type="submit"
+            disabled={saving}
+            style={{
+              background: '#1976d2',
+              color: '#fff',
+              padding: '0.75rem',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '1rem',
+              cursor: saving ? 'not-allowed' : 'pointer',
+            }}
+          >
             {saving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         </form>
       </div>
-
-      <style jsx>{`
-        .admin-plans-edit {
-          max-width: 500px;
-          margin: auto;
-          padding: 2rem 1rem;
-        }
-        h1 {
-          text-align: center;
-          margin-bottom: 1.5rem;
-        }
-        .error {
-          color: #c00;
-          text-align: center;
-          margin-bottom: 1rem;
-        }
-        .form-plan {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        label {
-          font-weight: 600;
-        }
-        input {
-          padding: 0.5rem;
-          border: 1px solid #ccc;
-          border-radius: 6px;
-          font-size: 1rem;
-        }
-        button {
-          background: #1976d2;
-          color: #fff;
-          padding: 0.75rem;
-          border: none;
-          border-radius: 6px;
-          font-size: 1rem;
-          cursor: pointer;
-        }
-        button:hover {
-          background: #125ca1;
-        }
-        button:disabled {
-          background: #aaa;
-          cursor: not-allowed;
-        }
-      `}</style>
-    </Layout>
+    </AdminLayout>
   )
 }
