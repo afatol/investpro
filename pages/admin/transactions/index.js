@@ -56,7 +56,6 @@ export default function AdminTransactionsPage() {
     try {
       const { data, error: fetchErr } = await supabase
         .from('transactions')
-        // ‘profiles!inner(name,email,phone)’: lista colunas da tabela relacionada
         .select(`
           id,
           user_id,
@@ -170,18 +169,30 @@ export default function AdminTransactionsPage() {
           </thead>
           <tbody>
             {filteredTransacoes.map((t) => {
-              // Gera URL para o comprovante (caso precise de signed URL ou getPublicUrl):
-              let publicURL = null
-              if (t.proof_url) {
-                if (t.proof_url.startsWith('http://') || t.proof_url.startsWith('https://')) {
-                  publicURL = t.proof_url
-                } else {
-                  const { publicURL: url } = supabase.storage
-                    .from('proofs')
-                    .getPublicUrl(t.proof_url)
-                  publicURL = url
+              // Em vez de getPublicUrl, geramos signed URL aqui (válida 60s a partir deste momento)
+              const [signedUrl, setSignedUrl] = useState(null)
+
+              // Se houver proof_url, criamos (e armazenamos) a Signed URL ao renderizar
+              useEffect(() => {
+                async function gerarUrl() {
+                  if (t.proof_url) {
+                    if (
+                      t.proof_url.startsWith('http://') ||
+                      t.proof_url.startsWith('https://')
+                    ) {
+                      // Se já é URL completa, usa diretamente (não expira)
+                      setSignedUrl(t.proof_url)
+                    } else {
+                      // Caso privado no Storage, gera signed URL com expiração de 60s
+                      const { data, error } = await supabase.storage
+                        .from('proofs')
+                        .createSignedUrl(t.proof_url, 60)
+                      if (!error) setSignedUrl(data.signedUrl)
+                    }
+                  }
                 }
-              }
+                gerarUrl()
+              }, [t.proof_url])
 
               return (
                 <tr key={t.id}>
@@ -194,8 +205,8 @@ export default function AdminTransactionsPage() {
                   <td style={tdStyle}>{t.status}</td>
                   <td style={tdStyle}>{new Date(t.data).toLocaleString('pt-BR')}</td>
                   <td style={tdStyle}>
-                    {publicURL ? (
-                      <a href={publicURL} target="_blank" rel="noopener noreferrer">
+                    {signedUrl ? (
+                      <a href={signedUrl} target="_blank" rel="noopener noreferrer">
                         Ver Comprovante
                       </a>
                     ) : (
@@ -232,7 +243,9 @@ export default function AdminTransactionsPage() {
 
             {filteredTransacoes.length === 0 && (
               <tr>
-                <td colSpan="10" style={{ textAlign: 'center' }}>Nenhuma transação encontrada.</td>
+                <td colSpan="10" style={{ textAlign: 'center' }}>
+                  Nenhuma transação encontrada.
+                </td>
               </tr>
             )}
           </tbody>
