@@ -15,38 +15,53 @@ export default function AdminRendimentosPage() {
     fetchRendimentos()
   }, [])
 
-  // Aplica filtro local sempre que 'filtro' ou 'rendimentos' mudar
+  // Aplica filtro local sempre que 'filtro' ou 'rendimentos' mudarem
   useEffect(() => {
     if (!filtro.trim()) {
       setFilteredRendimentos(rendimentos)
     } else {
       const term = filtro.toLowerCase()
       const filtrados = rendimentos.filter((r) => {
-        const userIdMatch = r.user_id?.toLowerCase().includes(term)
+        const userName = r.profiles?.name?.toLowerCase() || ''
+        const userEmail = r.profiles?.email?.toLowerCase() || ''
+        const userPhone = r.profiles?.phone?.toLowerCase() || ''
         const valorMatch = Number(r.valor)
           .toFixed(2)
           .toString()
-          .toLowerCase()
           .includes(term)
         const origemMatch = r.origem?.toLowerCase().includes(term)
         const dateMatch = new Date(r.data)
           .toLocaleString('pt-BR')
           .toLowerCase()
           .includes(term)
-        return userIdMatch || valorMatch || origemMatch || dateMatch
+        return (
+          userName.includes(term) ||
+          userEmail.includes(term) ||
+          userPhone.includes(term) ||
+          valorMatch ||
+          origemMatch ||
+          dateMatch
+        )
       })
       setFilteredRendimentos(filtrados)
     }
   }, [filtro, rendimentos])
 
-  // 1) Busca todos os rendimentos aplicados
+  // 1) Busca todos os rendimentos aplicados + dados de perfil (name, email, phone)
   const fetchRendimentos = async () => {
     setError('')
     setLoading(true)
     try {
       const { data, error: fetchErr } = await supabase
         .from('rendimentos_aplicados')
-        .select('id, user_id, valor, origem, data')
+        .select(`
+          id,
+          user_id,
+          valor,
+          origem,
+          data,
+          profiles ( name, email, phone )
+        `)
         .order('data', { ascending: false })
 
       if (fetchErr) throw fetchErr
@@ -85,7 +100,7 @@ export default function AdminRendimentosPage() {
         <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
           <input
             type="text"
-            placeholder="Filtrar por ID usuário, Valor, Origem ou Data..."
+            placeholder="Filtrar por Usuário, Email, Telefone, Valor, Origem ou Data..."
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
             style={{
@@ -103,6 +118,9 @@ export default function AdminRendimentosPage() {
           <thead>
             <tr>
               <th style={thStyle}>Usuário (ID)</th>
+              <th style={thStyle}>Nome do Usuário</th>
+              <th style={thStyle}>Email</th>
+              <th style={thStyle}>Telefone</th>
               <th style={thStyle}>Valor</th>
               <th style={thStyle}>Origem</th>
               <th style={thStyle}>Data</th>
@@ -112,6 +130,9 @@ export default function AdminRendimentosPage() {
             {filteredRendimentos.map((r) => (
               <tr key={r.id}>
                 <td style={tdStyle}>{r.user_id}</td>
+                <td style={tdStyle}>{r.profiles?.name || '—'}</td>
+                <td style={tdStyle}>{r.profiles?.email || '—'}</td>
+                <td style={tdStyle}>{r.profiles?.phone || '—'}</td>
                 <td style={tdStyle}>{Number(r.valor).toFixed(2)}</td>
                 <td style={tdStyle}>{r.origem}</td>
                 <td style={tdStyle}>{new Date(r.data).toLocaleString('pt-BR')}</td>
@@ -120,7 +141,7 @@ export default function AdminRendimentosPage() {
 
             {filteredRendimentos.length === 0 && (
               <tr>
-                <td colSpan="4" style={{ textAlign: 'center' }}>Nenhum rendimento encontrado.</td>
+                <td colSpan="7" style={{ textAlign: 'center' }}>Nenhum rendimento encontrado.</td>
               </tr>
             )}
           </tbody>
