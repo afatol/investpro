@@ -63,7 +63,7 @@ export default function AdminPlansPage() {
                 color: '#fff',
                 padding: '0.5rem 1rem',
                 borderRadius: '4px',
-                textDecoration: 'none',
+                textDecoration: 'none', //
               }}
             >
               + Novo Plano
