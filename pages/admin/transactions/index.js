@@ -13,55 +13,34 @@ export default function AdminTransactionsPage() {
     fetchTransactions()
   }, [])
 
-  // 1) Busca as transações sem tentar join
+  // 1) Busca todas as transações pendentes e/ou já processadas
   const fetchTransactions = async () => {
     setError('')
     setLoading(true)
     try {
-      const { data: txData, error: txErr } = await supabase
+      // Se você tiver FK fk_transactions_profiles → profiles.id, pode descomentar o join abaixo
+      // const { data, error: fetchErr } = await supabase
+      //   .from('transactions')
+      //   .select(`
+      //     id,
+      //     user_id,
+      //     type,
+      //     amount,
+      //     status,
+      //     data,
+      //     proof_url,
+      //     profiles!fk_transactions_profiles ( name, email, phone )
+      //   `)
+      //   .order('data', { ascending: false })
+
+      // Caso não tenha o join configurado, apenas trazemos os campos simples:
+      const { data, error: fetchErr } = await supabase
         .from('transactions')
         .select('id, user_id, type, amount, status, data, proof_url')
         .order('data', { ascending: false })
 
-      if (txErr) throw txErr
-
-      // Se não vier nada, já finaliza
-      if (!txData || txData.length === 0) {
-        setTransacoes([])
-        setLoading(false)
-        return
-      }
-
-      // Extrai lista de user_ids únicos
-      const userIds = Array.from(new Set(txData.map((t) => t.user_id))).filter(
-        (id) => id !== null
-      )
-
-      // 2) Busca perfis em lote
-      const { data: profilesData, error: profilesErr } = await supabase
-        .from('profiles')
-        .select('id, name, email, phone')
-        .in('id', userIds)
-
-      if (profilesErr) throw profilesErr
-
-      // Monta um map id → perfil
-      const perfilMap = {}
-      profilesData.forEach((p) => {
-        perfilMap[p.id] = {
-          name: p.name,
-          email: p.email,
-          phone: p.phone,
-        }
-      })
-
-      // 3) Junta arrays: adiciona campos de perfil em cada transação
-      const merged = txData.map((t) => ({
-        ...t,
-        perfil: perfilMap[t.user_id] || { name: null, email: null, phone: null },
-      }))
-
-      setTransacoes(merged)
+      if (fetchErr) throw fetchErr
+      setTransacoes(data || [])
     } catch (err) {
       console.error(err)
       setError('Falha ao carregar transações.')
@@ -70,7 +49,7 @@ export default function AdminTransactionsPage() {
     }
   }
 
-  // Aprova a transação (atualiza status para “approved”)
+  // 2) Aprova a transação (status = "approved")
   const handleApprove = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -79,11 +58,26 @@ export default function AdminTransactionsPage() {
         .eq('id', transactionId)
 
       if (updateErr) throw updateErr
-
       fetchTransactions()
     } catch (err) {
       console.error(err)
       alert('Não foi possível aprovar a transação.')
+    }
+  }
+
+  // 3) Rejeita a transação (status = "rejected")
+  const handleReject = async (transactionId) => {
+    try {
+      const { error: updateErr } = await supabase
+        .from('transactions')
+        .update({ status: 'rejected' })
+        .eq('id', transactionId)
+
+      if (updateErr) throw updateErr
+      fetchTransactions()
+    } catch (err) {
+      console.error(err)
+      alert('Não foi possível rejeitar a transação.')
     }
   }
 
@@ -98,9 +92,7 @@ export default function AdminTransactionsPage() {
   if (error) {
     return (
       <AdminLayout>
-        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
-          {error}
-        </p>
+        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>{error}</p>
       </AdminLayout>
     )
   }
@@ -113,10 +105,8 @@ export default function AdminTransactionsPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
+              <th style={thStyle}>ID</th>
               <th style={thStyle}>Usuário (ID)</th>
-              <th style={thStyle}>Nome</th>
-              <th style={thStyle}>E-mail</th>
-              <th style={thStyle}>Telefone</th>
               <th style={thStyle}>Tipo</th>
               <th style={thStyle}>Valor</th>
               <th style={thStyle}>Status</th>
@@ -127,9 +117,9 @@ export default function AdminTransactionsPage() {
           </thead>
           <tbody>
             {transacoes.map((t) => {
+              // Gera a URL pública para o arquivo de comprovante (ajuste 'comprovantes' se seu bucket tiver outro nome)
               let publicURL = null
               if (t.proof_url) {
-                // assume que “comprovantes” é o nome do seu bucket
                 const { publicURL: url } = supabase.storage
                   .from('comprovantes')
                   .getPublicUrl(t.proof_url)
@@ -138,10 +128,8 @@ export default function AdminTransactionsPage() {
 
               return (
                 <tr key={t.id}>
+                  <td style={tdStyle}>{t.id}</td>
                   <td style={tdStyle}>{t.user_id}</td>
-                  <td style={tdStyle}>{t.perfil.name || '—'}</td>
-                  <td style={tdStyle}>{t.perfil.email || '—'}</td>
-                  <td style={tdStyle}>{t.perfil.phone || '—'}</td>
                   <td style={tdStyle}>{t.type}</td>
                   <td style={tdStyle}>{Number(t.amount).toFixed(2)}</td>
                   <td style={tdStyle}>{t.status}</td>
@@ -156,12 +144,28 @@ export default function AdminTransactionsPage() {
                     )}
                   </td>
                   <td style={tdStyle}>
-                    {t.status === 'pending' ? (
-                      <button onClick={() => handleApprove(t.id)} style={btnApproveStyle}>
-                        Aprovar
-                      </button>
-                    ) : (
-                      '—'
+                    {/* Botões “Aceitar” e “Rejeitar” */}
+                    {t.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleApprove(t.id)}
+                          style={{ ...btnActionStyle, background: '#43a047' }}
+                        >
+                          Aceitar
+                        </button>
+                        <button
+                          onClick={() => handleReject(t.id)}
+                          style={{ ...btnActionStyle, background: '#e53935' }}
+                        >
+                          Rejeitar
+                        </button>
+                      </>
+                    )}
+                    {t.status === 'approved' && (
+                      <span style={{ color: '#43a047', fontWeight: 'bold' }}>Aprovado</span>
+                    )}
+                    {t.status === 'rejected' && (
+                      <span style={{ color: '#e53935', fontWeight: 'bold' }}>Rejeitado</span>
                     )}
                   </td>
                 </tr>
@@ -170,9 +174,7 @@ export default function AdminTransactionsPage() {
 
             {transacoes.length === 0 && (
               <tr>
-                <td colSpan="10" style={{ textAlign: 'center' }}>
-                  Nenhuma transação encontrada.
-                </td>
+                <td colSpan="8" style={{ textAlign: 'center' }}>Nenhuma transação encontrada.</td>
               </tr>
             )}
           </tbody>
@@ -194,12 +196,12 @@ const tdStyle = {
   borderBottom: '1px solid #eee',
 }
 
-const btnApproveStyle = {
-  background: '#43a047',
+const btnActionStyle = {
   color: '#fff',
   border: 'none',
-  padding: '0.5rem 0.75rem',
+  padding: '0.4rem 0.8rem',
   borderRadius: '4px',
   cursor: 'pointer',
   fontSize: '0.9rem',
+  marginRight: '0.5rem',
 }
