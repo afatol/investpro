@@ -6,6 +6,7 @@ import { supabase } from '../../../lib/supabaseClient'
 
 export default function AdminTransactionsPage() {
   const [transacoes, setTransacoes] = useState([])
+  const [signedUrls, setSignedUrls] = useState({}) // para guardar URL temporária de cada ID
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -13,7 +14,7 @@ export default function AdminTransactionsPage() {
     fetchTransactions()
   }, [])
 
-  // 1) Busca todas as transações
+  // 1) Busca todas as transações (incluindo proof_url, mas que agora será apenas o "path")
   const fetchTransactions = async () => {
     setError('')
     setLoading(true)
@@ -25,6 +26,8 @@ export default function AdminTransactionsPage() {
 
       if (fetchErr) throw fetchErr
       setTransacoes(data || [])
+      // Assim que buscar, vamos gerar signed URLs para cada uma que tiver proof_url
+      generateAllSignedUrls(data || [])
     } catch (err) {
       console.error(err)
       setError('Falha ao carregar transações.')
@@ -33,7 +36,30 @@ export default function AdminTransactionsPage() {
     }
   }
 
-  // 2) Aprova a transação (status = "approved")
+  // 2) Gera signed URLs (válidos 60s) para cada transação que tiver proof_url
+  const generateAllSignedUrls = async (lista) => {
+    const urls = {}
+    await Promise.all(
+      lista.map(async (t) => {
+        if (t.proof_url) {
+          // t.proof_url aqui deve ser apenas o "path" dentro do bucket proofs,
+          // ex: "ce8d37fe-…_arquivo.pdf"
+          const { data: signedData, error: signedErr } = await supabase.storage
+            .from('proofs')   // nome exato do bucket
+            .createSignedUrl(t.proof_url, 60) // URL válida por 60 segundos
+          if (!signedErr && signedData?.signedUrl) {
+            urls[t.id] = signedData.signedUrl
+          } else {
+            console.error('Erro ao gerar signed URL:', signedErr)
+            urls[t.id] = null
+          }
+        }
+      })
+    )
+    setSignedUrls(urls)
+  }
+
+  // 3) Aprovar transação
   const handleApprove = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -49,7 +75,7 @@ export default function AdminTransactionsPage() {
     }
   }
 
-  // 3) Rejeita a transação (status = "rejected")
+  // 4) Rejeitar transação
   const handleReject = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -103,21 +129,7 @@ export default function AdminTransactionsPage() {
           </thead>
           <tbody>
             {transacoes.map((t) => {
-              // Monta a URL final para o comprovante
-              let publicURL = null
-
-              if (t.proof_url) {
-                // Se proof_url já for URL completa, usamos direto:
-                if (t.proof_url.startsWith('http://') || t.proof_url.startsWith('https://')) {
-                  publicURL = t.proof_url
-                } else {
-                  // Caso proof_url seja apenas o "path" dentro do bucket "proofs", geramos a publicURL:
-                  const { publicURL: url } = supabase.storage
-                    .from('proofs')    // ajuste "proofs" para o nome real do bucket onde você guardou os arquivos
-                    .getPublicUrl(t.proof_url)
-                  publicURL = url
-                }
-              }
+              const signedURL = signedUrls[t.id] || null
 
               return (
                 <tr key={t.id}>
@@ -128,8 +140,8 @@ export default function AdminTransactionsPage() {
                   <td style={tdStyle}>{t.status}</td>
                   <td style={tdStyle}>{new Date(t.data).toLocaleString('pt-BR')}</td>
                   <td style={tdStyle}>
-                    {publicURL ? (
-                      <a href={publicURL} target="_blank" rel="noopener noreferrer">
+                    {signedURL ? (
+                      <a href={signedURL} target="_blank" rel="noopener noreferrer">
                         Ver Comprovante
                       </a>
                     ) : (
