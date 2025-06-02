@@ -11,26 +11,28 @@ export default function AdminPlansPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const fetchPlans = async () => {
-      setError('')
-      try {
-        // Removemos “taxa_rendimento” pois a coluna não existe e gerava 400
-        const { data, error: fetchErr } = await supabase
-          .from('plans')
-          .select('id, name')
-          .order('name', { ascending: true })
-
-        if (fetchErr) throw fetchErr
-        setPlans(data || [])
-      } catch (err) {
-        console.error(err)
-        setError('Falha ao carregar planos.')
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchPlans()
   }, [])
+
+  // 1) Busca todos os planos, agora incluindo "daily_rate"
+  const fetchPlans = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      const { data, error: fetchErr } = await supabase
+        .from('plans')
+        .select('id, name, daily_rate')
+        .order('name', { ascending: true })
+
+      if (fetchErr) throw fetchErr
+      setPlans(data || [])
+    } catch (err) {
+      console.error(err)
+      setError('Falha ao carregar planos.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -73,6 +75,7 @@ export default function AdminPlansPage() {
           <thead>
             <tr>
               <th style={thStyle}>Nome do Plano</th>
+              <th style={thStyle}>Daily Rate (%)</th>
               <th style={thStyle}>Ações</th>
             </tr>
           </thead>
@@ -80,6 +83,7 @@ export default function AdminPlansPage() {
             {plans.map((p) => (
               <tr key={p.id}>
                 <td style={tdStyle}>{p.name}</td>
+                <td style={tdStyle}>{Number(p.daily_rate).toFixed(2)}</td>
                 <td style={tdStyle}>
                   <Link href={`/admin/plans/${p.id}`}>
                     <a style={btnEditStyle}>Editar</a>
@@ -90,7 +94,7 @@ export default function AdminPlansPage() {
 
             {plans.length === 0 && (
               <tr>
-                <td colSpan="2" style={{ textAlign: 'center' }}>
+                <td colSpan="3" style={{ textAlign: 'center' }}>
                   Nenhum plano cadastrado.
                 </td>
               </tr>
@@ -102,6 +106,7 @@ export default function AdminPlansPage() {
   )
 }
 
+// Estilos em linha para cabeçalho e células da tabela
 const thStyle = {
   padding: '0.75rem',
   borderBottom: '1px solid #ddd',
