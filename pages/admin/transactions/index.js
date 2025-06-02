@@ -13,31 +13,55 @@ export default function AdminTransactionsPage() {
     fetchTransactions()
   }, [])
 
-  // Função que busca as transações já incluindo dados do perfil
+  // 1) Busca as transações sem tentar join
   const fetchTransactions = async () => {
     setError('')
     setLoading(true)
     try {
-      const { data, error: fetchErr } = await supabase
+      const { data: txData, error: txErr } = await supabase
         .from('transactions')
-        .select(`
-          id,
-          user_id,
-          type,
-          amount,
-          status,
-          data,
-          proof_url,
-          profiles (
-            name,
-            email,
-            phone
-          )
-        `)
+        .select('id, user_id, type, amount, status, data, proof_url')
         .order('data', { ascending: false })
 
-      if (fetchErr) throw fetchErr
-      setTransacoes(data || [])
+      if (txErr) throw txErr
+
+      // Se não vier nada, já finaliza
+      if (!txData || txData.length === 0) {
+        setTransacoes([])
+        setLoading(false)
+        return
+      }
+
+      // Extrai lista de user_ids únicos
+      const userIds = Array.from(new Set(txData.map((t) => t.user_id))).filter(
+        (id) => id !== null
+      )
+
+      // 2) Busca perfis em lote
+      const { data: profilesData, error: profilesErr } = await supabase
+        .from('profiles')
+        .select('id, name, email, phone')
+        .in('id', userIds)
+
+      if (profilesErr) throw profilesErr
+
+      // Monta um map id → perfil
+      const perfilMap = {}
+      profilesData.forEach((p) => {
+        perfilMap[p.id] = {
+          name: p.name,
+          email: p.email,
+          phone: p.phone,
+        }
+      })
+
+      // 3) Junta arrays: adiciona campos de perfil em cada transação
+      const merged = txData.map((t) => ({
+        ...t,
+        perfil: perfilMap[t.user_id] || { name: null, email: null, phone: null },
+      }))
+
+      setTransacoes(merged)
     } catch (err) {
       console.error(err)
       setError('Falha ao carregar transações.')
@@ -46,7 +70,7 @@ export default function AdminTransactionsPage() {
     }
   }
 
-  // Aprova a transação, alterando status para 'approved'
+  // Aprova a transação (atualiza status para “approved”)
   const handleApprove = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -55,6 +79,7 @@ export default function AdminTransactionsPage() {
         .eq('id', transactionId)
 
       if (updateErr) throw updateErr
+
       fetchTransactions()
     } catch (err) {
       console.error(err)
@@ -102,11 +127,10 @@ export default function AdminTransactionsPage() {
           </thead>
           <tbody>
             {transacoes.map((t) => {
-              // Se proof_url for um caminho no bucket "comprovantes", geramos a URL pública
               let publicURL = null
               if (t.proof_url) {
-                const { publicURL: url } = supabase
-                  .storage
+                // assume que “comprovantes” é o nome do seu bucket
+                const { publicURL: url } = supabase.storage
                   .from('comprovantes')
                   .getPublicUrl(t.proof_url)
                 publicURL = url
@@ -115,9 +139,9 @@ export default function AdminTransactionsPage() {
               return (
                 <tr key={t.id}>
                   <td style={tdStyle}>{t.user_id}</td>
-                  <td style={tdStyle}>{t.profiles?.name || '—'}</td>
-                  <td style={tdStyle}>{t.profiles?.email || '—'}</td>
-                  <td style={tdStyle}>{t.profiles?.phone || '—'}</td>
+                  <td style={tdStyle}>{t.perfil.name || '—'}</td>
+                  <td style={tdStyle}>{t.perfil.email || '—'}</td>
+                  <td style={tdStyle}>{t.perfil.phone || '—'}</td>
                   <td style={tdStyle}>{t.type}</td>
                   <td style={tdStyle}>{Number(t.amount).toFixed(2)}</td>
                   <td style={tdStyle}>{t.status}</td>
@@ -133,10 +157,7 @@ export default function AdminTransactionsPage() {
                   </td>
                   <td style={tdStyle}>
                     {t.status === 'pending' ? (
-                      <button
-                        onClick={() => handleApprove(t.id)}
-                        style={btnApproveStyle}
-                      >
+                      <button onClick={() => handleApprove(t.id)} style={btnApproveStyle}>
                         Aprovar
                       </button>
                     ) : (
@@ -174,7 +195,7 @@ const tdStyle = {
 }
 
 const btnApproveStyle = {
-  background: '#43a047',      // verde para aprovar
+  background: '#43a047',
   color: '#fff',
   border: 'none',
   padding: '0.5rem 0.75rem',
