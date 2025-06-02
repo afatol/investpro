@@ -10,13 +10,12 @@ export default function AdminRendimentosPage() {
   const [filtro, setFiltro] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     fetchRendimentos()
   }, [])
 
-  // Reaplica filtro sempre que ‘filtro’ ou ‘rendimentos’ mudarem
+  // Reaplica filtro sempre que 'filtro' ou 'rendimentos' mudarem
   useEffect(() => {
     if (!filtro.trim()) {
       setFilteredRendimentos(rendimentos)
@@ -25,30 +24,28 @@ export default function AdminRendimentosPage() {
       const filtrados = rendimentos.filter((r) => {
         const userName = r.profiles?.name?.toLowerCase() || ''
         const userEmail = r.profiles?.email?.toLowerCase() || ''
-        const userPhone = r.profiles?.phone?.toLowerCase() || ''
-        const valorMatch = Number(r.valor)
+        const amountMatch = Number(r.valor)
           .toFixed(2)
           .toString()
           .includes(term)
-        const origemMatch = r.origem?.toLowerCase().includes(term)
         const dateMatch = new Date(r.data)
           .toLocaleString('pt-BR')
           .toLowerCase()
           .includes(term)
+        const origemMatch = r.origem?.toLowerCase().includes(term)
         return (
           userName.includes(term) ||
           userEmail.includes(term) ||
-          userPhone.includes(term) ||
-          valorMatch ||
-          origemMatch ||
-          dateMatch
+          amountMatch ||
+          dateMatch ||
+          origemMatch
         )
       })
       setFilteredRendimentos(filtrados)
     }
   }, [filtro, rendimentos])
 
-  // 1) Busca rendimentos + relacionamento com profiles (name, email, phone)
+  // 1) Buscar rendimentos junto ao relacionamento profiles (name, email, phone)
   const fetchRendimentos = async () => {
     setError('')
     setLoading(true)
@@ -65,36 +62,16 @@ export default function AdminRendimentosPage() {
         `)
         .order('data', { ascending: false })
 
-      if (fetchErr) throw fetchErr
+      if (fetchErr) {
+        console.error('Erro na consulta de rendimentos:', fetchErr.message)
+        throw fetchErr
+      }
       setRendimentos(data || [])
       setFilteredRendimentos(data || [])
     } catch (err) {
-      console.error(err)
-      setError('Falha ao carregar rendimentos.')
+      setError('Falha ao carregar rendimentos: ' + (err.message || err))
     } finally {
       setLoading(false)
-    }
-  }
-
-  // 2) Chama a RPC para atualizar rendimento de todos
-  const handleUpdateAll = async () => {
-    if (!confirm('Deseja realmente atualizar o rendimento de todos os usuários para hoje?')) {
-      return
-    }
-    setUpdating(true)
-    try {
-      // Ajuste esse nome de RPC para a sua função no Supabase
-      const { error: rpcErr } = await supabase.rpc('apply_daily_rendimentos')
-      if (rpcErr) throw rpcErr
-
-      // Recarrega a lista após gerar novos lançamentos
-      await fetchRendimentos()
-      alert('Rendimentos atualizados com sucesso!')
-    } catch (err) {
-      console.error(err)
-      alert('Erro ao atualizar rendimentos: ' + err.message)
-    } finally {
-      setUpdating(false)
     }
   }
 
@@ -121,30 +98,11 @@ export default function AdminRendimentosPage() {
       <div style={{ maxWidth: '1000px', margin: 'auto', padding: '2rem 1rem' }}>
         <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Gerenciar Rendimentos Aplicados</h1>
 
-        {/* Botão de ação para atualizar todos os rendimentos do dia */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-          <button
-            onClick={handleUpdateAll}
-            disabled={updating}
-            style={{
-              background: updating ? '#aaa' : '#1976d2',
-              color: '#fff',
-              padding: '0.5rem 1rem',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '1rem',
-              cursor: updating ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {updating ? 'Atualizando...' : 'Atualizar Rendimentos de Hoje'}
-          </button>
-        </div>
-
         {/* Campo de filtro */}
         <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
           <input
             type="text"
-            placeholder="Filtrar por Usuário, Email, Telefone, Valor, Origem ou Data..."
+            placeholder="Filtrar por Usuário, Email, Origem ou Data..."
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
             style={{
@@ -161,8 +119,7 @@ export default function AdminRendimentosPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={thStyle}>Usuário (ID)</th>
-              <th style={thStyle}>Nome do Usuário</th>
+              <th style={thStyle}>Usuário</th>
               <th style={thStyle}>Email</th>
               <th style={thStyle}>Telefone</th>
               <th style={thStyle}>Valor</th>
@@ -173,7 +130,6 @@ export default function AdminRendimentosPage() {
           <tbody>
             {filteredRendimentos.map((r) => (
               <tr key={r.id}>
-                <td style={tdStyle}>{r.user_id}</td>
                 <td style={tdStyle}>{r.profiles?.name || '—'}</td>
                 <td style={tdStyle}>{r.profiles?.email || '—'}</td>
                 <td style={tdStyle}>{r.profiles?.phone || '—'}</td>
@@ -185,7 +141,9 @@ export default function AdminRendimentosPage() {
 
             {filteredRendimentos.length === 0 && (
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center' }}>Nenhum rendimento encontrado.</td>
+                <td colSpan="6" style={{ textAlign: 'center' }}>
+                  Nenhum rendimento encontrado.
+                </td>
               </tr>
             )}
           </tbody>
@@ -199,10 +157,10 @@ const thStyle = {
   padding: '0.75rem',
   borderBottom: '1px solid #ddd',
   textAlign: 'left',
-  background: '#f5f5f5',
+  background: '#f5f5f5'
 }
 
 const tdStyle = {
   padding: '0.75rem',
-  borderBottom: '1px solid #eee',
+  borderBottom: '1px solid #eee'
 }
