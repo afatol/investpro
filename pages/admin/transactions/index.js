@@ -7,7 +7,7 @@ import { supabase } from '../../../lib/supabaseClient'
 export default function AdminTransactionsPage() {
   const [transacoes, setTransacoes] = useState([])
   const [filteredTransacoes, setFilteredTransacoes] = useState([])
-  const [filtro, setFiltro] = useState('')       // estado para armazenar o texto do filtro
+  const [filtro, setFiltro] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -15,35 +15,58 @@ export default function AdminTransactionsPage() {
     fetchTransactions()
   }, [])
 
-  // Reaplica o filtro local toda vez que 'filtro' ou 'transacoes' mudar
+  // Reaplica filtro quando mudar ‘filtro’ ou a lista original
   useEffect(() => {
     if (!filtro.trim()) {
       setFilteredTransacoes(transacoes)
     } else {
       const term = filtro.toLowerCase()
       const filtrados = transacoes.filter((t) => {
-        // Converte cada campo relevante para string e compara
-        const userIdMatch = t.user_id?.toLowerCase().includes(term)
+        const userName = t.profiles?.name?.toLowerCase() || ''
+        const userEmail = t.profiles?.email?.toLowerCase() || ''
+        const userPhone = t.profiles?.phone?.toLowerCase() || ''
         const typeMatch = t.type?.toLowerCase().includes(term)
         const statusMatch = t.status?.toLowerCase().includes(term)
         const dateMatch = new Date(t.data)
           .toLocaleString('pt-BR')
           .toLowerCase()
           .includes(term)
-        return userIdMatch || typeMatch || statusMatch || dateMatch
+        const amountMatch = Number(t.amount)
+          .toFixed(2)
+          .toString()
+          .includes(term)
+        return (
+          userName.includes(term) ||
+          userEmail.includes(term) ||
+          userPhone.includes(term) ||
+          typeMatch ||
+          statusMatch ||
+          dateMatch ||
+          amountMatch
+        )
       })
       setFilteredTransacoes(filtrados)
     }
   }, [filtro, transacoes])
 
-  // 1) Busca todas as transações
+  // 1) Busca transações + relacionamento com profiles (name, email, phone)
   const fetchTransactions = async () => {
     setError('')
     setLoading(true)
     try {
       const { data, error: fetchErr } = await supabase
         .from('transactions')
-        .select('id, user_id, type, amount, status, data, proof_url')
+        // ‘profiles!inner(name,email,phone)’: lista colunas da tabela relacionada
+        .select(`
+          id,
+          user_id,
+          type,
+          amount,
+          status,
+          data,
+          proof_url,
+          profiles ( name, email, phone )
+        `)
         .order('data', { ascending: false })
 
       if (fetchErr) throw fetchErr
@@ -57,7 +80,7 @@ export default function AdminTransactionsPage() {
     }
   }
 
-  // 2) Aprova a transação (status = "approved")
+  // 2) Aprovar transação
   const handleApprove = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -73,7 +96,7 @@ export default function AdminTransactionsPage() {
     }
   }
 
-  // 3) Rejeita a transação (status = "rejected")
+  // 3) Rejeitar transação
   const handleReject = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -116,7 +139,7 @@ export default function AdminTransactionsPage() {
         <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
           <input
             type="text"
-            placeholder="Filtrar por ID, Usuário, Tipo ou Status..."
+            placeholder="Filtrar por Usuário, Email, Telefone, Tipo, Status ou Data..."
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
             style={{
@@ -134,7 +157,9 @@ export default function AdminTransactionsPage() {
           <thead>
             <tr>
               <th style={thStyle}>ID</th>
-              <th style={thStyle}>Usuário (ID)</th>
+              <th style={thStyle}>Nome do Usuário</th>
+              <th style={thStyle}>Email</th>
+              <th style={thStyle}>Telefone</th>
               <th style={thStyle}>Tipo</th>
               <th style={thStyle}>Valor</th>
               <th style={thStyle}>Status</th>
@@ -145,9 +170,8 @@ export default function AdminTransactionsPage() {
           </thead>
           <tbody>
             {filteredTransacoes.map((t) => {
-              // Monta URL para comprovante (privado ou signed url se for o caso)
+              // Gera URL para o comprovante (caso precise de signed URL ou getPublicUrl):
               let publicURL = null
-
               if (t.proof_url) {
                 if (t.proof_url.startsWith('http://') || t.proof_url.startsWith('https://')) {
                   publicURL = t.proof_url
@@ -162,7 +186,9 @@ export default function AdminTransactionsPage() {
               return (
                 <tr key={t.id}>
                   <td style={tdStyle}>{t.id}</td>
-                  <td style={tdStyle}>{t.user_id}</td>
+                  <td style={tdStyle}>{t.profiles?.name || '—'}</td>
+                  <td style={tdStyle}>{t.profiles?.email || '—'}</td>
+                  <td style={tdStyle}>{t.profiles?.phone || '—'}</td>
                   <td style={tdStyle}>{t.type}</td>
                   <td style={tdStyle}>{Number(t.amount).toFixed(2)}</td>
                   <td style={tdStyle}>{t.status}</td>
@@ -206,7 +232,7 @@ export default function AdminTransactionsPage() {
 
             {filteredTransacoes.length === 0 && (
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center' }}>Nenhuma transação encontrada.</td>
+                <td colSpan="10" style={{ textAlign: 'center' }}>Nenhuma transação encontrada.</td>
               </tr>
             )}
           </tbody>
