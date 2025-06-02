@@ -13,27 +13,10 @@ export default function AdminTransactionsPage() {
     fetchTransactions()
   }, [])
 
-  // 1) Busca todas as transações pendentes e/ou já processadas
   const fetchTransactions = async () => {
     setError('')
     setLoading(true)
     try {
-      // Se você tiver FK fk_transactions_profiles → profiles.id, pode descomentar o join abaixo
-      // const { data, error: fetchErr } = await supabase
-      //   .from('transactions')
-      //   .select(`
-      //     id,
-      //     user_id,
-      //     type,
-      //     amount,
-      //     status,
-      //     data,
-      //     proof_url,
-      //     profiles!fk_transactions_profiles ( name, email, phone )
-      //   `)
-      //   .order('data', { ascending: false })
-
-      // Caso não tenha o join configurado, apenas trazemos os campos simples:
       const { data, error: fetchErr } = await supabase
         .from('transactions')
         .select('id, user_id, type, amount, status, data, proof_url')
@@ -49,7 +32,6 @@ export default function AdminTransactionsPage() {
     }
   }
 
-  // 2) Aprova a transação (status = "approved")
   const handleApprove = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -65,7 +47,6 @@ export default function AdminTransactionsPage() {
     }
   }
 
-  // 3) Rejeita a transação (status = "rejected")
   const handleReject = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -92,7 +73,9 @@ export default function AdminTransactionsPage() {
   if (error) {
     return (
       <AdminLayout>
-        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>{error}</p>
+        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
+          {error}
+        </p>
       </AdminLayout>
     )
   }
@@ -117,14 +100,29 @@ export default function AdminTransactionsPage() {
           </thead>
           <tbody>
             {transacoes.map((t) => {
-              // Gera a URL pública para o arquivo de comprovante (ajuste 'comprovantes' se seu bucket tiver outro nome)
-              let publicURL = null
-              if (t.proof_url) {
-                const { publicURL: url } = supabase.storage
-                  .from('comprovantes')
-                  .getPublicUrl(t.proof_url)
-                publicURL = url
-              }
+-             // versão antiga (INCORRETA para URLs completas):
+-             // let publicURL = null
+-             // if (t.proof_url) {
+-             //   const { publicURL: url } = supabase.storage
+-             //     .from('comprovantes')
+-             //     .getPublicUrl(t.proof_url)
+-             //   publicURL = url
+-             // }
+
++             // nova lógica: se proof_url já começa com "http", usamos direto.
++             let publicURL = null
++             if (t.proof_url) {
++               if (t.proof_url.startsWith('http://') || t.proof_url.startsWith('https://')) {
++                 publicURL = t.proof_url
++               } else {
++                 // Se você realmente armazenar só o path (ex: "arquivo.pdf"), 
++                 // garanta usar o bucket correto ("proofs" ou o que estiver configurado).
++                 const { publicURL: url } = supabase.storage
++                   .from('proofs')         // <— ajuste para o nome exato do bucket no Supabase
++                   .getPublicUrl(t.proof_url)
++                 publicURL = url
++               }
++             }
 
               return (
                 <tr key={t.id}>
@@ -135,16 +133,22 @@ export default function AdminTransactionsPage() {
                   <td style={tdStyle}>{t.status}</td>
                   <td style={tdStyle}>{new Date(t.data).toLocaleString('pt-BR')}</td>
                   <td style={tdStyle}>
-                    {publicURL ? (
-                      <a href={publicURL} target="_blank" rel="noopener noreferrer">
-                        Ver Comprovante
-                      </a>
-                    ) : (
-                      '—'
-                    )}
+-                   {publicURL ? (
+-                     <a href={publicURL} target="_blank" rel="noopener noreferrer">
+-                       Ver Comprovante
+-                     </a>
+-                   ) : (
+-                     '—'
+-                   )}
++                   {publicURL ? (
++                     <a href={publicURL} target="_blank" rel="noopener noreferrer">
++                       Ver Comprovante
++                     </a>
++                   ) : (
++                     '—'
++                   )}
                   </td>
                   <td style={tdStyle}>
-                    {/* Botões “Aceitar” e “Rejeitar” */}
                     {t.status === 'pending' && (
                       <>
                         <button
