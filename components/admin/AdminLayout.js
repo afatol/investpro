@@ -76,9 +76,6 @@ export default function AdminLayout({ children }) {
           </div>
 
           <div className="nav-actions">
-            <Link href="/">
-              <a className="btn outline">Voltar ao Site</a>
-            </Link>
             <button
               onClick={async () => {
                 await supabase.auth.signOut()
@@ -114,8 +111,8 @@ export default function AdminLayout({ children }) {
           left: 0;
           width: 100%;
           height: 64px; /* Altura do nav */
-          background-color: #1976d2;
-          color: #fff;
+          background-color: #fff; /* fundo branco */
+          color: #333;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
           z-index: 1000;
         }
@@ -147,7 +144,7 @@ export default function AdminLayout({ children }) {
         }
 
         .nav-link {
-          color: #fff;
+          color: #333; /* cor escura para contraste */
           text-decoration: none;
           font-weight: 500;
           padding: 0.4rem 0.6rem;
@@ -156,17 +153,17 @@ export default function AdminLayout({ children }) {
         }
 
         .nav-link:hover {
-          background: rgba(255, 255, 255, 0.15);
+          background: #f0f0f0;
         }
 
         .nav-link.active {
-          background-color: #fff;
-          color: #1976d2;
+          background-color: #1976d2;
+          color: #fff;
           font-weight: bold;
         }
 
         /* ============================
-           AÇÕES DO MENU (Botões) 
+           AÇÕES DO MENU (Botão “Sair”) 
            ============================ */
         .nav-actions {
           display: flex;
@@ -185,14 +182,6 @@ export default function AdminLayout({ children }) {
         }
         .btn:hover {
           background-color: #ab2424;
-        }
-        .btn.outline {
-          background: #fff;
-          color: #1976d2;
-          border: 2px solid #fff;
-        }
-        .btn.outline:hover {
-          background: rgba(255, 255, 255, 0.9);
         }
 
         /* ============================
