@@ -5,18 +5,17 @@ import AdminLayout from '../../../components/admin/AdminLayout'
 import { supabase } from '../../../lib/supabaseClient'
 
 export default function AdminTransactionsPage() {
-  const [transacoes, setTransacoes] = useState([])               // lista completa de transações (com signedUrl)
-  const [filteredTransacoes, setFilteredTransacoes] = useState([]) // lista filtrada
+  const [transacoes, setTransacoes] = useState([])
+  const [filteredTransacoes, setFilteredTransacoes] = useState([])
   const [filtro, setFiltro] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [updating, setUpdating] = useState(false)               // estado do botão de ação (se houver)
 
   useEffect(() => {
     fetchTransactions()
   }, [])
 
-  // Reaplica filtro quando ‘filtro’ ou ‘transacoes’ mudam
+  // Reaplica filtro sempre que ‘filtro’ ou ‘transacoes’ mudarem
   useEffect(() => {
     if (!filtro.trim()) {
       setFilteredTransacoes(transacoes)
@@ -25,7 +24,6 @@ export default function AdminTransactionsPage() {
       const filtrados = transacoes.filter((t) => {
         const userName = t.profiles?.name?.toLowerCase() || ''
         const userEmail = t.profiles?.email?.toLowerCase() || ''
-        const userPhone = t.profiles?.phone?.toLowerCase() || ''
         const typeMatch = t.type?.toLowerCase().includes(term)
         const statusMatch = t.status?.toLowerCase().includes(term)
         const dateMatch = new Date(t.data)
@@ -39,7 +37,6 @@ export default function AdminTransactionsPage() {
         return (
           userName.includes(term) ||
           userEmail.includes(term) ||
-          userPhone.includes(term) ||
           typeMatch ||
           statusMatch ||
           dateMatch ||
@@ -50,14 +47,11 @@ export default function AdminTransactionsPage() {
     }
   }, [filtro, transacoes])
 
-  // 1) Busca transações + relacionamento com profiles (name, email, phone)
-  //    e gera signedUrl para cada comprovante (se não for URL pública).
+  // 1) Busca transações junto ao relacionamento com profiles (name, email, phone)
   const fetchTransactions = async () => {
     setError('')
     setLoading(true)
-
     try {
-      // 1.a) Busca os dados brutos
       const { data, error: fetchErr } = await supabase
         .from('transactions')
         .select(`
@@ -72,44 +66,14 @@ export default function AdminTransactionsPage() {
         `)
         .order('data', { ascending: false })
 
-      if (fetchErr) throw fetchErr
-
-      // 1.b) Para cada transação, gerar signedUrl (60s) ou usar diretamente se já for URL completa
-      const listaComUrls = await Promise.all(
-        (data || []).map(async (t) => {
-          let signedUrl = null
-
-          if (t.proof_url) {
-            // Se já começa com http, usa direto (bucket público ou URL externa)
-            if (
-              t.proof_url.startsWith('http://') ||
-              t.proof_url.startsWith('https://')
-            ) {
-              signedUrl = t.proof_url
-            } else {
-              // Gera signed URL válido por 60 segundos
-              const { data: urlData, error: urlErr } = await supabase.storage
-                .from('proofs')
-                .createSignedUrl(t.proof_url, 60)
-
-              if (!urlErr) {
-                signedUrl = urlData.signedUrl
-              }
-            }
-          }
-
-          return {
-            ...t,
-            signedUrl, // campo extra com a URL que vale 60s
-          }
-        })
-      )
-
-      setTransacoes(listaComUrls)
-      setFilteredTransacoes(listaComUrls)
+      if (fetchErr) {
+        console.error('Erro na consulta de transações:', fetchErr.message)
+        throw fetchErr
+      }
+      setTransacoes(data || [])
+      setFilteredTransacoes(data || [])
     } catch (err) {
-      console.error(err)
-      setError('Falha ao carregar transações.')
+      setError('Falha ao carregar transações: ' + (err.message || err))
     } finally {
       setLoading(false)
     }
@@ -123,11 +87,13 @@ export default function AdminTransactionsPage() {
         .update({ status: 'approved' })
         .eq('id', transactionId)
 
-      if (updateErr) throw updateErr
-      await fetchTransactions()
+      if (updateErr) {
+        console.error('Erro ao aprovar transação:', updateErr.message)
+        throw updateErr
+      }
+      fetchTransactions()
     } catch (err) {
-      console.error(err)
-      alert('Não foi possível aprovar a transação.')
+      alert('Não foi possível aprovar a transação: ' + (err.message || err))
     }
   }
 
@@ -139,11 +105,13 @@ export default function AdminTransactionsPage() {
         .update({ status: 'rejected' })
         .eq('id', transactionId)
 
-      if (updateErr) throw updateErr
-      await fetchTransactions()
+      if (updateErr) {
+        console.error('Erro ao rejeitar transação:', updateErr.message)
+        throw updateErr
+      }
+      fetchTransactions()
     } catch (err) {
-      console.error(err)
-      alert('Não foi possível rejeitar a transação.')
+      alert('Não foi possível rejeitar a transação: ' + (err.message || err))
     }
   }
 
@@ -204,55 +172,118 @@ export default function AdminTransactionsPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredTransacoes.map((t) => (
-              <tr key={t.id}>
-                <td style={tdStyle}>{t.id}</td>
-                <td style={tdStyle}>{t.profiles?.name || '—'}</td>
-                <td style={tdStyle}>{t.profiles?.email || '—'}</td>
-                <td style={tdStyle}>{t.profiles?.phone || '—'}</td>
-                <td style={tdStyle}>{t.type}</td>
-                <td style={tdStyle}>{Number(t.amount).toFixed(2)}</td>
-                <td style={tdStyle}>{t.status}</td>
-                <td style={tdStyle}>{new Date(t.data).toLocaleString('pt-BR')}</td>
-                <td style={tdStyle}>
-                  {t.signedUrl ? (
-                    <a href={t.signedUrl} target="_blank" rel="noopener noreferrer">
-                      Ver Comprovante
-                    </a>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td style={tdStyle}>
-                  {t.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleApprove(t.id)}
-                        style={{ ...btnActionStyle, background: '#43a047' }}
+            {filteredTransacoes.map((t) => {
+              // Gera URL para o comprovante (caso precise de signed URL ou getPublicUrl):
+              let publicURL = null
+              if (t.proof_url) {
+                if (
+                  t.proof_url.startsWith('http://') ||
+                  t.proof_url.startsWith('https://')
+                ) {
+                  publicURL = t.proof_url
+                } else {
+                  try {
+                    // Proteção para eventuais bucket ausente ou nome de arquivo errado
+                    const {
+                      data: { publicUrl },
+                      error: urlError
+                    } = supabase.storage.from('proofs').getPublicUrl(t.proof_url)
+
+                    if (urlError) {
+                      console.error(
+                        'Erro ao obter publicUrl:',
+                        urlError.message
+                      )
+                    } else {
+                      publicURL = publicUrl
+                    }
+                  } catch (err) {
+                    console.error('Exceção em getPublicUrl:', err.message)
+                  }
+                }
+              }
+
+              return (
+                <tr key={t.id}>
+                  <td style={tdStyle}>{t.id}</td>
+                  <td style={tdStyle}>{t.profiles?.name || '—'}</td>
+                  <td style={tdStyle}>{t.profiles?.email || '—'}</td>
+                  <td style={tdStyle}>{t.profiles?.phone || '—'}</td>
+                  <td style={tdStyle}>{t.type}</td>
+                  <td style={tdStyle}>{Number(t.amount).toFixed(2)}</td>
+                  <td style={tdStyle}>{t.status}</td>
+                  <td style={tdStyle}>
+                    {new Date(t.data).toLocaleString('pt-BR')}
+                  </td>
+                  <td style={tdStyle}>
+                    {publicURL ? (
+                      <a
+                        href={publicURL}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
-                        Aceitar
-                      </button>
-                      <button
-                        onClick={() => handleReject(t.id)}
-                        style={{ ...btnActionStyle, background: '#e53935' }}
+                        Ver Comprovante
+                      </a>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td style={tdStyle}>
+                    {t.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleApprove(t.id)}
+                          style={{
+                            ...btnActionStyle,
+                            background: '#43a047'
+                          }}
+                        >
+                          Aceitar
+                        </button>
+                        <button
+                          onClick={() => handleReject(t.id)}
+                          style={{
+                            ...btnActionStyle,
+                            background: '#e53935'
+                          }}
+                        >
+                          Rejeitar
+                        </button>
+                      </>
+                    )}
+                    {t.status === 'approved' && (
+                      <span
+                        style={{
+                          color: '#43a047',
+                          fontWeight: 'bold'
+                        }}
                       >
-                        Rejeitar
-                      </button>
-                    </>
-                  )}
-                  {t.status === 'approved' && (
-                    <span style={{ color: '#43a047', fontWeight: 'bold' }}>Aprovado</span>
-                  )}
-                  {t.status === 'rejected' && (
-                    <span style={{ color: '#e53935', fontWeight: 'bold' }}>Rejeitado</span>
-                  )}
-                </td>
-              </tr>
-            ))}
+                        Aprovado
+                      </span>
+                    )}
+                    {t.status === 'rejected' && (
+                      <span
+                        style={{
+                          color: '#e53935',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        Rejeitado
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
 
             {filteredTransacoes.length === 0 && (
               <tr>
-                <td colSpan="10" style={{ textAlign: 'center' }}>Nenhuma transação encontrada.</td>
+                <td
+                  colSpan="10"
+                  style={{ textAlign: 'center' }}
+                >
+                  Nenhuma transação encontrada.
+                </td>
               </tr>
             )}
           </tbody>
@@ -266,12 +297,12 @@ const thStyle = {
   padding: '0.75rem',
   borderBottom: '1px solid #ddd',
   textAlign: 'left',
-  background: '#f5f5f5',
+  background: '#f5f5f5'
 }
 
 const tdStyle = {
   padding: '0.75rem',
-  borderBottom: '1px solid #eee',
+  borderBottom: '1px solid #eee'
 }
 
 const btnActionStyle = {
@@ -281,5 +312,5 @@ const btnActionStyle = {
   borderRadius: '4px',
   cursor: 'pointer',
   fontSize: '0.9rem',
-  marginRight: '0.5rem',
+  marginRight: '0.5rem'
 }
