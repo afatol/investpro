@@ -10,37 +10,59 @@ export default function AdminRendimentosPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const fetchRendimentos = async () => {
-      setError('')
-      try {
-        // Puxa id, user_id, valor, origem, data e faz join com profiles para pegar name, email, phone
-        const { data, error: fetchErr } = await supabase
-          .from('rendimentos_aplicados')
-          .select(`
-            id,
-            user_id,
-            valor,
-            origem,
-            data,
-            profiles (
-              name,
-              email,
-              phone
-            )
-          `)
-          .order('data', { ascending: false })
-
-        if (fetchErr) throw fetchErr
-        setRendimentos(data || [])
-      } catch (err) {
-        console.error(err)
-        setError('Falha ao carregar rendimentos.')
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchRendimentos()
   }, [])
+
+  const fetchRendimentos = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      const { data: rdData, error: rdErr } = await supabase
+        .from('rendimentos_aplicados')
+        .select('id, user_id, valor, origem, data')
+        .order('data', { ascending: false })
+
+      if (rdErr) throw rdErr
+
+      if (!rdData || rdData.length === 0) {
+        setRendimentos([])
+        setLoading(false)
+        return
+      }
+
+      const userIds = Array.from(new Set(rdData.map((r) => r.user_id))).filter(
+        (id) => id !== null
+      )
+
+      const { data: profilesData, error: profilesErr } = await supabase
+        .from('profiles')
+        .select('id, name, email, phone')
+        .in('id', userIds)
+
+      if (profilesErr) throw profilesErr
+
+      const perfilMap = {}
+      profilesData.forEach((p) => {
+        perfilMap[p.id] = {
+          name: p.name,
+          email: p.email,
+          phone: p.phone,
+        }
+      })
+
+      const merged = rdData.map((r) => ({
+        ...r,
+        perfil: perfilMap[r.user_id] || { name: null, email: null, phone: null },
+      }))
+
+      setRendimentos(merged)
+    } catch (err) {
+      console.error(err)
+      setError('Falha ao carregar rendimentos.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -53,9 +75,7 @@ export default function AdminRendimentosPage() {
   if (error) {
     return (
       <AdminLayout>
-        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
-          {error}
-        </p>
+        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>{error}</p>
       </AdminLayout>
     )
   }
@@ -81,15 +101,14 @@ export default function AdminRendimentosPage() {
             {rendimentos.map((r) => (
               <tr key={r.id}>
                 <td style={tdStyle}>{r.user_id}</td>
-                <td style={tdStyle}>{r.profiles?.name || '—'}</td>
-                <td style={tdStyle}>{r.profiles?.email || '—'}</td>
-                <td style={tdStyle}>{r.profiles?.phone || '—'}</td>
+                <td style={tdStyle}>{r.perfil.name || '—'}</td>
+                <td style={tdStyle}>{r.perfil.email || '—'}</td>
+                <td style={tdStyle}>{r.perfil.phone || '—'}</td>
                 <td style={tdStyle}>{Number(r.valor).toFixed(2)}</td>
                 <td style={tdStyle}>{r.origem}</td>
                 <td style={tdStyle}>{new Date(r.data).toLocaleString('pt-BR')}</td>
               </tr>
             ))}
-
             {rendimentos.length === 0 && (
               <tr>
                 <td colSpan="7" style={{ textAlign: 'center' }}>
