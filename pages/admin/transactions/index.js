@@ -13,6 +13,7 @@ export default function AdminTransactionsPage() {
     fetchTransactions()
   }, [])
 
+  // 1) Busca todas as transações
   const fetchTransactions = async () => {
     setError('')
     setLoading(true)
@@ -32,6 +33,7 @@ export default function AdminTransactionsPage() {
     }
   }
 
+  // 2) Aprova a transação (status = "approved")
   const handleApprove = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -47,6 +49,7 @@ export default function AdminTransactionsPage() {
     }
   }
 
+  // 3) Rejeita a transação (status = "rejected")
   const handleReject = async (transactionId) => {
     try {
       const { error: updateErr } = await supabase
@@ -100,29 +103,21 @@ export default function AdminTransactionsPage() {
           </thead>
           <tbody>
             {transacoes.map((t) => {
--             // versão antiga (INCORRETA para URLs completas):
--             // let publicURL = null
--             // if (t.proof_url) {
--             //   const { publicURL: url } = supabase.storage
--             //     .from('comprovantes')
--             //     .getPublicUrl(t.proof_url)
--             //   publicURL = url
--             // }
+              // Monta a URL final para o comprovante
+              let publicURL = null
 
-+             // nova lógica: se proof_url já começa com "http", usamos direto.
-+             let publicURL = null
-+             if (t.proof_url) {
-+               if (t.proof_url.startsWith('http://') || t.proof_url.startsWith('https://')) {
-+                 publicURL = t.proof_url
-+               } else {
-+                 // Se você realmente armazenar só o path (ex: "arquivo.pdf"), 
-+                 // garanta usar o bucket correto ("proofs" ou o que estiver configurado).
-+                 const { publicURL: url } = supabase.storage
-+                   .from('proofs')         // <— ajuste para o nome exato do bucket no Supabase
-+                   .getPublicUrl(t.proof_url)
-+                 publicURL = url
-+               }
-+             }
+              if (t.proof_url) {
+                // Se proof_url já for URL completa, usamos direto:
+                if (t.proof_url.startsWith('http://') || t.proof_url.startsWith('https://')) {
+                  publicURL = t.proof_url
+                } else {
+                  // Caso proof_url seja apenas o "path" dentro do bucket "proofs", geramos a publicURL:
+                  const { publicURL: url } = supabase.storage
+                    .from('proofs')    // ajuste "proofs" para o nome real do bucket onde você guardou os arquivos
+                    .getPublicUrl(t.proof_url)
+                  publicURL = url
+                }
+              }
 
               return (
                 <tr key={t.id}>
@@ -133,20 +128,13 @@ export default function AdminTransactionsPage() {
                   <td style={tdStyle}>{t.status}</td>
                   <td style={tdStyle}>{new Date(t.data).toLocaleString('pt-BR')}</td>
                   <td style={tdStyle}>
--                   {publicURL ? (
--                     <a href={publicURL} target="_blank" rel="noopener noreferrer">
--                       Ver Comprovante
--                     </a>
--                   ) : (
--                     '—'
--                   )}
-+                   {publicURL ? (
-+                     <a href={publicURL} target="_blank" rel="noopener noreferrer">
-+                       Ver Comprovante
-+                     </a>
-+                   ) : (
-+                     '—'
-+                   )}
+                    {publicURL ? (
+                      <a href={publicURL} target="_blank" rel="noopener noreferrer">
+                        Ver Comprovante
+                      </a>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td style={tdStyle}>
                     {t.status === 'pending' && (
