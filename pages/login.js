@@ -1,4 +1,4 @@
-// pages/login.js
+// File: ./pages/login.js
 
 import { useState } from 'react'
 import { useRouter } from 'next/router'
@@ -18,7 +18,11 @@ export default function Login() {
     setError('')
     setLoading(true)
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    // 1) Autentica no Supabase e obtém o objeto 'user'
+    const {
+      data: { user },
+      error: signInError
+    } = await supabase.auth.signInWithPassword({
       email,
       password: senha
     })
@@ -26,8 +30,32 @@ export default function Login() {
     if (signInError) {
       setError(signInError.message)
       setLoading(false)
-    } else {
-      router.push('/dashboard')
+      return
+    }
+
+    // 2) Se conseguiu logar, busca o campo is_admin no perfil desse usuário
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError) {
+        throw profileError
+      }
+
+      // 3) Redireciona de acordo com is_admin
+      if (profile.is_admin) {
+        router.push('/admin')
+      } else {
+        router.push('/dashboard')
+      }
+    } catch (err) {
+      console.error(err)
+      setError('Não foi possível determinar o tipo de usuário.')
+    } finally {
+      setLoading(false)
     }
   }
 
