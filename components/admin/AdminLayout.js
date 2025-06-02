@@ -1,11 +1,11 @@
-// File: ./components/admin/AdminLayout.js
+// ./components/admin/AdminLayout.js
+
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 
-// Este layout será o “container” de todas as páginas /admin. 
-// Não há import de CSS módulo; usamos estilos in-line para manter algo mínimo.
-
+// Copiei as cores e espaçamentos de acordo com o Nav de investidor.
+// Se o Nav original usar alguma classe CSS (Tailwind ou módulo), adapte aqui para corresponder.
 export default function AdminLayout({ children }) {
   const [user, setUser] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -13,6 +13,7 @@ export default function AdminLayout({ children }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
+        // Se não estiver logado, joga para login
         window.location.href = '/login'
         return
       }
@@ -27,43 +28,74 @@ export default function AdminLayout({ children }) {
           if (!error && data?.is_admin) {
             setIsAdmin(true)
           } else {
+            // Se não for admin, joga para dashboard de investidor
             window.location.href = '/dashboard'
           }
         })
     })
   }, [])
 
+  // Enquanto não souber se é admin ou não, não renderiza nada (evita “flash” de conteúdo errado)
   if (!user || !isAdmin) {
     return null
   }
 
   return (
     <>
-      <header style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0.75rem 1.5rem',
-        background: '#1976D2',
-        color: '#fff'
-      }}>
+      <header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '1rem 1.5rem',       // copiar espaçamentos do Nav de investidor
+          background: '#1976D2',        // mesma cor de fundo do Nav de investidor
+          color: '#fff',
+          fontFamily: '"Roboto", sans-serif', // mesma família de fonte
+        }}
+      >
+        {/* Logo (mesmo texto e estilo) */}
         <div>
           <Link href="/admin">
-            <a style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 'bold', textDecoration: 'none' }}>
+            <a
+              style={{
+                color: '#fff',
+                fontSize: '1.25rem',
+                fontWeight: 'bold',
+                textDecoration: 'none',
+                fontFamily: '"Roboto", sans-serif',
+              }}
+            >
               InvestPro <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>Admin</span>
             </a>
           </Link>
         </div>
+
+        {/* Links de menu identados para o admin */}
         <nav style={{ display: 'flex', gap: '1rem' }}>
-          <Link href="/admin/users"><a style={navLink}>Usuários</a></Link>
-          <Link href="/admin/transactions"><a style={navLink}>Transações</a></Link>
-          <Link href="/admin/rendimentos_aplicados"><a style={navLink}>Rendimentos</a></Link>
-          <Link href="/admin/plans"><a style={navLink}>Planos</a></Link>
-          <Link href="/admin/configs"><a style={navLink}>Configurações</a></Link>
-          <Link href="/admin/page_contents"><a style={navLink}>Páginas</a></Link>
+          <Link href="/admin/users">
+            <a style={navLink}>Usuários</a>
+          </Link>
+          <Link href="/admin/transactions">
+            <a style={navLink}>Transações</a>
+          </Link>
+          <Link href="/admin/rendimentos_aplicados">
+            <a style={navLink}>Rendimentos</a>
+          </Link>
+          <Link href="/admin/plans">
+            <a style={navLink}>Planos</a>
+          </Link>
+          {/* Suprimiremos Configurações gerais depois, pois você disse que não faz mais sentido */}
+          <Link href="/admin/page_contents">
+            <a style={navLink}>Páginas</a>
+          </Link>
         </nav>
-        <div>
-          <Link href="/"><a style={buttonLink}>Voltar ao Site</a></Link>
+
+        {/* Botão “Voltar ao site” e “Sair” (mesmos estilos do Nav de investidor) */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <Link href="/">
+            <a style={buttonLink}>Voltar ao Site</a>
+          </Link>
+
           <button
             onClick={async () => {
               await supabase.auth.signOut()
@@ -71,18 +103,20 @@ export default function AdminLayout({ children }) {
             }}
             style={{
               marginLeft: '1rem',
-              background: '#e53935',
+              background: '#E53935',   // mesma cor de botão “Sair” do Nav
               color: '#fff',
               border: 'none',
               padding: '0.5rem 1rem',
               borderRadius: '4px',
-              cursor: 'pointer'
+              fontFamily: '"Roboto", sans-serif',
+              cursor: 'pointer',
             }}
           >
             Sair
           </button>
         </div>
       </header>
+
       <main style={{ padding: '1.5rem' }}>{children}</main>
     </>
   )
@@ -91,7 +125,8 @@ export default function AdminLayout({ children }) {
 const navLink = {
   color: '#fff',
   textDecoration: 'none',
-  fontWeight: '500'
+  fontWeight: '500',
+  fontFamily: '"Roboto", sans-serif',
 }
 
 const buttonLink = {
@@ -100,5 +135,6 @@ const buttonLink = {
   padding: '0.5rem 1rem',
   borderRadius: '4px',
   textDecoration: 'none',
-  fontWeight: '500'
+  fontWeight: '500',
+  fontFamily: '"Roboto", sans-serif',
 }
