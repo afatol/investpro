@@ -1,1 +1,75 @@
+/* components/admin/AdminLayout.module.css */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #ffffff;
+  padding: 0.75rem 2rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.logo a {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #1976d2;
+  text-decoration: none;
+}
+.subLogo {
+  font-size: 0.9rem;
+  color: #555;
+  margin-left: 0.25rem;
+}
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+}
+.nav a {
+  font-weight: 500;
+  color: #333;
+  text-decoration: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+.nav a:hover {
+  background-color: #e0e0e0;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+.actions a {
+  color: #1976d2;
+  text-decoration: none;
+  font-weight: 500;
+}
+.logoutBtn {
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.logoutBtn:hover {
+  background-color: #b71c1c;
+}
+
+.mainContent {
+  flex: 1;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
 
