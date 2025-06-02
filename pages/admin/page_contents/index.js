@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Layout from '../../../components/Layout'
+import AdminLayout from '../../../components/admin/AdminLayout'
 import { supabase } from '../../../lib/supabaseClient'
 
-export default function AdminPageContents() {
+export default function AdminPageContentsList() {
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -14,7 +14,6 @@ export default function AdminPageContents() {
     const fetchPages = async () => {
       setError('')
       try {
-        // Consulta todas as páginas estáticas (slug, title)
         const { data, error: fetchErr } = await supabase
           .from('page_contents')
           .select('slug, title')
@@ -34,114 +33,158 @@ export default function AdminPageContents() {
 
   if (loading) {
     return (
-      <Layout>
-        <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando páginas estáticas...</p>
-      </Layout>
-    )
-  }
-
-  if (error) {
-    return (
-      <Layout>
-        <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
-          {error}
-        </p>
-      </Layout>
+      <AdminLayout>
+        <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando páginas...</p>
+      </AdminLayout>
     )
   }
 
   return (
-    <Layout>
-      <div className="admin-page_contents">
-        <h1>Gerenciar Conteúdo de Páginas</h1>
-        <div className="btn-new">
+    <AdminLayout>
+      <div style={{ maxWidth: '800px', margin: 'auto', padding: '2rem 1rem' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Páginas Estáticas</h1>
+        {error && (
+          <p
+            style={{
+              color: '#c00',
+              textAlign: 'center',
+              marginBottom: '1rem',
+              fontWeight: 'bold',
+            }}
+          >
+            {error}
+          </p>
+        )}
+        <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
           <Link href="/admin/page_contents/new">
-            <a className="btn">+ Nova Página</a>
+            <a
+              style={{
+                background: '#0070f3',
+                color: '#fff',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                textDecoration: 'none',
+              }}
+            >
+              + Nova Página
+            </a>
           </Link>
         </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Slug</th>
-              <th>Título</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pages.map((p) => (
-              <tr key={p.slug}>
-                <td>{p.slug}</td>
-                <td>{p.title}</td>
-                <td>
-                  <Link href={`/admin/page_contents/${encodeURIComponent(p.slug)}`}>
-                    <a className="btn-edit">Editar</a>
-                  </Link>
-                </td>
+        {pages.length === 0 ? (
+          <p style={{ textAlign: 'center' }}>Nenhuma página cadastrada.</p>
+        ) : (
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              marginTop: '1rem',
+            }}
+          >
+            <thead>
+              <tr style={{ background: '#f5f5f5' }}>
+                <th
+                  style={{
+                    padding: '0.75rem',
+                    borderBottom: '1px solid #ddd',
+                    textAlign: 'left',
+                  }}
+                >
+                  Slug
+                </th>
+                <th
+                  style={{
+                    padding: '0.75rem',
+                    borderBottom: '1px solid #ddd',
+                    textAlign: 'left',
+                  }}
+                >
+                  Título
+                </th>
+                <th
+                  style={{
+                    padding: '0.75rem',
+                    borderBottom: '1px solid #ddd',
+                    textAlign: 'center',
+                    width: '120px',
+                  }}
+                >
+                  Ações
+                </th>
               </tr>
-            ))}
-
-            {pages.length === 0 && (
-              <tr>
-                <td colSpan="3" style={{ textAlign: 'center' }}>
-                  Nenhuma página encontrada.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pages.map((page) => (
+                <tr key={page.slug}>
+                  <td
+                    style={{
+                      padding: '0.75rem',
+                      borderBottom: '1px solid #eee',
+                    }}
+                  >
+                    {page.slug}
+                  </td>
+                  <td
+                    style={{
+                      padding: '0.75rem',
+                      borderBottom: '1px solid #eee',
+                    }}
+                  >
+                    {page.title || '—'}
+                  </td>
+                  <td
+                    style={{
+                      padding: '0.75rem',
+                      borderBottom: '1px solid #eee',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Link href={`/admin/page_contents/${encodeURIComponent(page.slug)}`}>
+                      <a
+                        style={{
+                          marginRight: '0.5rem',
+                          color: '#0070f3',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        Editar
+                      </a>
+                    </Link>
+                    <button
+                      onClick={async () => {
+                        if (
+                          window.confirm(
+                            `Tem certeza que deseja excluir a página "${page.slug}"?`
+                          )
+                        ) {
+                          const { error: deleteErr } = await supabase
+                            .from('page_contents')
+                            .delete()
+                            .eq('slug', page.slug)
+                          if (deleteErr) {
+                            alert('Erro ao excluir: ' + deleteErr.message)
+                          } else {
+                            setPages((prev) =>
+                              prev.filter((p) => p.slug !== page.slug)
+                            )
+                          }
+                        }
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#c00',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-
-      <style jsx>{`
-        .admin-page_contents {
-          max-width: 800px;
-          margin: auto;
-          padding: 2rem 1rem;
-        }
-        h1 {
-          text-align: center;
-          margin-bottom: 1.5rem;
-        }
-        .btn-new {
-          text-align: right;
-          margin-bottom: 1rem;
-        }
-        .btn {
-          background: #1976d2;
-          color: #fff;
-          padding: 0.5rem 1rem;
-          border-radius: 4px;
-          text-decoration: none;
-        }
-        .btn:hover {
-          background: #125ca1;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        th,
-        td {
-          padding: 0.75rem;
-          border: 1px solid #ddd;
-          text-align: left;
-        }
-        th {
-          background: #f5f5f5;
-        }
-        .btn-edit {
-          display: inline-block;
-          padding: 0.25rem 0.5rem;
-          background: #1976d2;
-          color: #fff;
-          border-radius: 4px;
-          text-decoration: none;
-          font-size: 0.9rem;
-        }
-        .btn-edit:hover {
-          background: #125ca1;
-        }
-      `}</style>
-    </Layout>
+    </AdminLayout>
   )
 }
