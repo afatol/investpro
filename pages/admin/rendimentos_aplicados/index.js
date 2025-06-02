@@ -1,7 +1,7 @@
 // File: ./pages/admin/rendimentos_aplicados/index.js
 
 import { useEffect, useState } from 'react'
-import Layout from '../../../components/Layout'
+import AdminLayout from '../../../components/admin/AdminLayout'
 import { supabase } from '../../../lib/supabaseClient'
 
 export default function AdminRendimentosPage() {
@@ -13,10 +13,21 @@ export default function AdminRendimentosPage() {
     const fetchRendimentos = async () => {
       setError('')
       try {
-        // Puxa id, user_id, valor, origem, data
+        // Puxa id, user_id, valor, origem, data e faz join com profiles para pegar name, email, phone
         const { data, error: fetchErr } = await supabase
           .from('rendimentos_aplicados')
-          .select('id, user_id, valor, origem, data')
+          .select(`
+            id,
+            user_id,
+            valor,
+            origem,
+            data,
+            profiles (
+              name,
+              email,
+              phone
+            )
+          `)
           .order('data', { ascending: false })
 
         if (fetchErr) throw fetchErr
@@ -33,49 +44,55 @@ export default function AdminRendimentosPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <AdminLayout>
         <p style={{ textAlign: 'center', marginTop: '2rem' }}>Carregando rendimentos...</p>
-      </Layout>
+      </AdminLayout>
     )
   }
 
   if (error) {
     return (
-      <Layout>
+      <AdminLayout>
         <p style={{ color: 'red', textAlign: 'center', marginTop: '2rem' }}>
           {error}
         </p>
-      </Layout>
+      </AdminLayout>
     )
   }
 
   return (
-    <Layout>
-      <div className="admin-rendimentos">
-        <h1>Gerenciar Rendimentos Aplicados</h1>
+    <AdminLayout>
+      <div style={{ maxWidth: '1000px', margin: 'auto', padding: '2rem 1rem' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Gerenciar Rendimentos Aplicados</h1>
 
-        <table>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th>Usuário (ID)</th>
-              <th>Valor</th>
-              <th>Origem</th>
-              <th>Data</th>
+              <th style={thStyle}>Usuário (ID)</th>
+              <th style={thStyle}>Nome</th>
+              <th style={thStyle}>E-mail</th>
+              <th style={thStyle}>Telefone</th>
+              <th style={thStyle}>Valor</th>
+              <th style={thStyle}>Origem</th>
+              <th style={thStyle}>Data</th>
             </tr>
           </thead>
           <tbody>
             {rendimentos.map((r) => (
               <tr key={r.id}>
-                <td>{r.user_id}</td>
-                <td>{Number(r.valor).toFixed(2)}</td>
-                <td>{r.origem}</td>
-                <td>{new Date(r.data).toLocaleString()}</td>
+                <td style={tdStyle}>{r.user_id}</td>
+                <td style={tdStyle}>{r.profiles?.name || '—'}</td>
+                <td style={tdStyle}>{r.profiles?.email || '—'}</td>
+                <td style={tdStyle}>{r.profiles?.phone || '—'}</td>
+                <td style={tdStyle}>{Number(r.valor).toFixed(2)}</td>
+                <td style={tdStyle}>{r.origem}</td>
+                <td style={tdStyle}>{new Date(r.data).toLocaleString('pt-BR')}</td>
               </tr>
             ))}
 
             {rendimentos.length === 0 && (
               <tr>
-                <td colSpan="4" style={{ textAlign: 'center' }}>
+                <td colSpan="7" style={{ textAlign: 'center' }}>
                   Nenhum rendimento encontrado.
                 </td>
               </tr>
@@ -83,31 +100,18 @@ export default function AdminRendimentosPage() {
           </tbody>
         </table>
       </div>
-
-      <style jsx>{`
-        .admin-rendimentos {
-          max-width: 1000px;
-          margin: auto;
-          padding: 2rem 1rem;
-        }
-        h1 {
-          text-align: center;
-          margin-bottom: 1.5rem;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        th,
-        td {
-          padding: 0.75rem;
-          border: 1px solid #ddd;
-          text-align: left;
-        }
-        th {
-          background: #f5f5f5;
-        }
-      `}</style>
-    </Layout>
+    </AdminLayout>
   )
+}
+
+const thStyle = {
+  padding: '0.75rem',
+  borderBottom: '1px solid #ddd',
+  textAlign: 'left',
+  background: '#f5f5f5',
+}
+
+const tdStyle = {
+  padding: '0.75rem',
+  borderBottom: '1px solid #eee',
 }
