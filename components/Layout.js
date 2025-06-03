@@ -14,7 +14,7 @@ export default function Layout({ children }) {
     { label: 'Minha Rede', href: '/rede' },
     { label: 'Planos', href: '/planos' },
     { label: 'Manual', href: '/manual' },
-    { label: 'Sobre', href: '/sobre' },
+    { label: 'Avisos', href: '/sobre' },
     { label: 'Sair', href: '/logout' }
   ]
 
