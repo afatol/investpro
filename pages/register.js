@@ -13,7 +13,7 @@ export default function Register() {
     email: '',
     password: '',
     confirmPassword: '',
-    phone_number: '',
+    phone: '',
     referral_code: ''
   })
   const [error, setError] = useState('')
@@ -28,7 +28,7 @@ export default function Register() {
     setError('')
     setLoading(true)
 
-    const { name, email, password, confirmPassword, phone_number, referral_code } = formData
+    const { name, email, password, confirmPassword, phone, referral_code } = formData
 
     // 1) Validação de senhas
     if (password !== confirmPassword) {
@@ -63,10 +63,10 @@ export default function Register() {
         password,
         options: {
           data: {
-            // Podemos enviar name e phone_number aqui,
+            // Podemos enviar name e phone aqui,
             // mas de qualquer forma depois faremos UPDATE na linha de profiles.
             name,
-            phone_number
+            phone
           }
         }
       })
@@ -82,7 +82,7 @@ export default function Register() {
           // Se tiver trigger gerando referral_code, não passar referral_code aqui.
           referrer_id: referrerId,
           name: name.trim(),
-          phone_number: phone_number.trim()
+          phone: phone.trim()
         })
         .eq('id', newUserId)
 
@@ -126,9 +126,9 @@ export default function Register() {
             />
             <input
               type="text"
-              name="phone_number"
+              name="phone"
               placeholder="Telefone"
-              value={formData.phone_number}
+              value={formData.phone}
               onChange={handleChange}
               required
             />
