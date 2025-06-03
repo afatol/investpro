@@ -14,9 +14,19 @@ import {
   Legend
 } from 'recharts'
 
+const formatUSD = (value) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+
+// Utility to strip accents and convert to lowercase
+const normalizeText = (str = '') =>
+  str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
 export default function TransacoesPage() {
   const [transacoes, setTransacoes] = useState([])
-  const [filteredTransacoes, setFilteredTransacoes] = useState([])
+  const [filtered, setFiltered] = useState([])
   const [filtro, setFiltro] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -42,7 +52,7 @@ export default function TransacoesPage() {
 
         if (fetchError) throw fetchError
         setTransacoes(data || [])
-        setFilteredTransacoes(data || [])
+        setFiltered(data || [])
       } catch (err) {
         console.error('Erro ao buscar transações:', err)
         setError('Erro ao buscar transações.')
@@ -54,44 +64,53 @@ export default function TransacoesPage() {
     fetchData()
   }, [])
 
-  // Reaplica filtro sempre que “filtro” ou “transacoes” mudarem
+  // Reaplica filtro sempre que 'filtro' ou 'transacoes' mudarem
   useEffect(() => {
-    if (!filtro.trim()) {
-      setFilteredTransacoes(transacoes)
-    } else {
-      const term = filtro.toLowerCase()
-      const filtrados = transacoes.filter((t) => {
-        const tipo = t.type?.toLowerCase() || ''
-        const status = t.status?.toLowerCase() || ''
-        const dataStr = new Date(t.data).toLocaleDateString('pt-BR').toLowerCase()
-        const amountStr = Number(t.amount).toFixed(2)
-        return (
-          tipo.includes(term) ||
-          status.includes(term) ||
-          dataStr.includes(term) ||
-          amountStr.includes(term)
-        )
-      })
-      setFilteredTransacoes(filtrados)
+    const term = normalizeText(filtro.trim())
+    if (!term) {
+      setFiltered(transacoes)
+      return
     }
-  }, [filtro, transacoes])
 
-  // Agrupa apenas as transações aprovadas (status === 'approved'), vindas do array filtrado
-  const agrupado = {}
-  filteredTransacoes
-    .filter((t) => t.status === 'approved')
-    .forEach((t) => {
-      const dia = new Date(t.data).toLocaleDateString('pt-BR')
-      if (!agrupado[dia]) agrupado[dia] = { name: dia, deposito: 0, saque: 0 }
+    const filtrados = transacoes.filter((t) => {
+      // 1) Data (pt-BR)
+      const dia = new Date(t.data)
+        .toLocaleDateString('pt-BR')
+        .toLowerCase()
+      // 2) Status
+      const status = normalizeText(t.status)
+      // 3) Valor
+      const valor = Number(t.amount).toFixed(2)
+      // 4) Tipo: map English type to Portuguese label
+      let tipoLabel = ''
+      if (t.type === 'deposit') tipoLabel = 'depósito'
+      else if (t.type === 'withdraw') tipoLabel = 'saque'
+      else tipoLabel = t.type
+      const tipoNormalized = normalizeText(tipoLabel)
 
-      const valor = parseFloat(t.amount) || 0
-      if (t.type === 'deposit') agrupado[dia].deposito += valor
-      if (t.type === 'withdraw') agrupado[dia].saque += valor
+      return (
+        dia.includes(term) ||
+        status.includes(term) ||
+        valor.toString().includes(term) ||
+        tipoNormalized.includes(term)
+      )
     })
 
-  const chartData = Object.values(agrupado)
+    setFiltered(filtrados)
+  }, [filtro, transacoes])
 
-  const formatUSD = (v) => `US$ ${Number(v || 0).toFixed(2)}`
+  // Agrupa apenas as transações aprovadas (filtered)
+  const aprovadas = filtered.filter((t) => t.status === 'approved')
+  const agrupado = {}
+  aprovadas.forEach((t) => {
+    const dia = new Date(t.data).toLocaleDateString('pt-BR')
+    if (!agrupado[dia]) agrupado[dia] = { name: dia, deposito: 0, saque: 0 }
+
+    const valor = parseFloat(t.amount) || 0
+    if (t.type === 'deposit') agrupado[dia].deposito += valor
+    if (t.type === 'withdraw') agrupado[dia].saque += valor
+  })
+  const chartData = Object.values(agrupado)
 
   return (
     <Layout>
@@ -104,16 +123,24 @@ export default function TransacoesPage() {
         {!loading && !error && (
           <>
             {/* Campo de filtro */}
-            <div className="filtro-container">
+            <div style={{ textAlign: 'right', margin: '1rem 0' }}>
               <input
                 type="text"
-                placeholder="Filtrar por Tipo, Status, Data ou Valor..."
+                placeholder="Filtrar por Data, Tipo (Depósito/Saque), Status ou Valor..."
                 value={filtro}
                 onChange={(e) => setFiltro(e.target.value)}
-                className="input-filtro"
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  width: '100%',
+                  maxWidth: '350px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  fontSize: '1rem'
+                }}
               />
             </div>
 
+            {/* Gráfico de Depósitos e Saques */}
             <div className="grafico">
               <h2>Gráfico de Depósitos e Saques</h2>
               {chartData.length > 0 ? (
@@ -121,7 +148,7 @@ export default function TransacoesPage() {
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
-                    <YAxis tickFormatter={formatUSD} />
+                    <YAxis tickFormatter={(v) => formatUSD(v)} />
                     <Tooltip formatter={(value) => formatUSD(value)} />
                     <Legend />
                     <Bar dataKey="deposito" name="Depósitos" fill="#4caf50" />
@@ -129,12 +156,11 @@ export default function TransacoesPage() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p style={{ textAlign: 'center' }}>
-                  Nenhuma transação aprovada encontrada.
-                </p>
+                <p style={{ textAlign: 'center' }}>Nenhuma transação aprovada encontrada.</p>
               )}
             </div>
 
+            {/* Tabela de Transações */}
             <div className="tabela">
               <h2>Histórico de Transações</h2>
               <table>
@@ -147,21 +173,21 @@ export default function TransacoesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTransacoes.map((t, i) => (
-                    <tr key={i}>
-                      <td>{new Date(t.data).toLocaleDateString('pt-BR')}</td>
-                      <td>{t.type === 'deposit' ? 'Depósito' : t.type === 'withdraw' ? 'Saque' : t.type}</td>
-                      <td>{formatUSD(t.amount)}</td>
-                      <td className={`status ${t.status}`}>{t.status}</td>
-                    </tr>
-                  ))}
-                  {filteredTransacoes.length === 0 && (
-                    <tr>
-                      <td colSpan="4" style={{ textAlign: 'center' }}>
-                        Nenhuma transação encontrada.
-                      </td>
-                    </tr>
-                  )}
+                  {filtered.map((t, i) => {
+                    const tipoLabel =
+                      t.type === 'deposit' ? 'Depósito' :
+                      t.type === 'withdraw' ? 'Saque' :
+                      t.type
+
+                    return (
+                      <tr key={i}>
+                        <td>{new Date(t.data).toLocaleDateString('pt-BR')}</td>
+                        <td>{tipoLabel}</td>
+                        <td>{formatUSD(t.amount)}</td>
+                        <td className={`status ${t.status}`}>{t.status}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -175,23 +201,10 @@ export default function TransacoesPage() {
             padding: 2rem 1rem;
           }
 
-          h1, h2 {
+          h1,
+          h2 {
             text-align: center;
             margin-bottom: 1rem;
-          }
-
-          .filtro-container {
-            margin-bottom: 1.5rem;
-            text-align: right;
-          }
-
-          .input-filtro {
-            padding: 0.5rem 0.75rem;
-            width: 100%;
-            max-width: 350px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 1rem;
           }
 
           .grafico {
@@ -207,7 +220,8 @@ export default function TransacoesPage() {
             border-collapse: collapse;
           }
 
-          th, td {
+          th,
+          td {
             padding: 0.8rem;
             text-align: center;
             border-bottom: 1px solid #ddd;
@@ -245,15 +259,6 @@ export default function TransacoesPage() {
             color: red;
             text-align: center;
             margin-top: 1rem;
-          }
-
-          @media (max-width: 600px) {
-            .grafico {
-              margin-bottom: 1.5rem;
-            }
-            th, td {
-              font-size: 0.9rem;
-            }
           }
         `}</style>
       </div>
