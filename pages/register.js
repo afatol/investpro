@@ -30,62 +30,75 @@ export default function Register() {
 
     const { name, email, password, confirmPassword, phone_number, referral_code } = formData
 
+    // 1) Validações básicas
     if (password !== confirmPassword) {
       setError('As senhas não coincidem')
       setLoading(false)
       return
     }
-
-    if (!referral_code) {
-      setError('Código de indicação é obrigatório')
-      setLoading(false)
-      return
-    }
-
-    // 1) Cria o usuário no Auth, informando name, phone_number e referral_code em user_metadata
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-          phone_number,
-          referral_code
-        }
-      }
-    })
-
-    if (signUpError) {
-      setError(signUpError.message)
+    if (!referral_code.trim()) {
+      setError('O código de indicação é obrigatório')
       setLoading(false)
       return
     }
 
     try {
-      // 2) Atualiza o registro correspondente em "profiles" para sobrescrever o trigger automático
-      const userId = signUpData.user.id
-      const { error: updateProfileError } = await supabase
+      // 2) Busca perfil do indicado (quem forneceu o "referral_code")
+      const { data: refererProfile, error: refererError } = await supabase
         .from('profiles')
-        .update({
-          name,            // nome exato vindo do formulário
-          phone_number,    // telefone
-          referral_code    // código de indicação
-        })
-        .eq('id', userId)
+        .select('id')
+        .eq('referral_code', referral_code.trim())
+        .maybeSingle()
 
-      if (updateProfileError) {
-        console.error('Erro ao sincronizar o profile:', updateProfileError)
-        // (opcional) Você pode exibir uma mensagem de aviso, mas normalmente não interrompe o fluxo:
-        // setError('Registrado, mas falhou ao salvar dados adicionais no perfil.')
+      if (refererError) throw refererError
+      if (!refererProfile) {
+        throw new Error('Código de indicação inválido')
       }
-    } catch (err) {
-      console.error('Erro inesperado ao atualizar profiles:', err)
-      // (opcional) setError('Registrado, mas ocorreu um erro interno.')
-    }
+      const referrerId = refererProfile.id
 
-    // 3) Redireciona para a página de login
-    router.push('/login')
-    setLoading(false)
+      // 3) Cria o usuário no Auth
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            phone_number,
+            // Você pode guardar o referral_code também em raw_user_metadata, mas
+            // o que interessa para nós é o referrer_id de verdade.
+            referral_code
+          }
+        }
+      })
+      if (signUpError) throw signUpError
+
+      const newUserId = signUpData.user.id
+
+      // 4) Insere na tabela "profiles" o novo perfil, apontando referrer_id
+      const { error: insertProfileError } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: newUserId,
+            name: name.trim(),
+            email: email.trim(),
+            phone_number: phone_number.trim(),
+            // Podemos armazenar também o referral_code do novo usuário (se for relevante):
+            referral_code: null, 
+            // Ou deixar que o trigger generate_referral_code() preencha automaticamente:
+            referrer_id: referrerId
+          }
+        ])
+      if (insertProfileError) throw insertProfileError
+
+      // 5) Redireciona para login (ou outra página)
+      router.push('/login')
+    } catch (err) {
+      console.error('Erro no cadastro:', err)
+      setError(err.message || 'Não foi possível cadastrar.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -164,7 +177,6 @@ export default function Register() {
           align-items: center;
           padding: 2rem 1rem;
         }
-
         .form-card {
           width: 100%;
           max-width: 400px;
@@ -173,13 +185,11 @@ export default function Register() {
           border-radius: 12px;
           box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
-
         h1 {
           text-align: center;
           margin-bottom: 1.5rem;
           color: #1976d2;
         }
-
         input {
           width: 100%;
           padding: 0.75rem;
@@ -188,7 +198,6 @@ export default function Register() {
           border-radius: 8px;
           font-size: 1rem;
         }
-
         button {
           width: 100%;
           padding: 0.75rem;
@@ -199,43 +208,35 @@ export default function Register() {
           font-size: 1rem;
           cursor: pointer;
         }
-
         button:hover {
           background-color: #125ca1;
         }
-
         button:disabled {
           background-color: #aaa;
           cursor: not-allowed;
         }
-
         .error {
           color: red;
           margin-bottom: 1rem;
           text-align: center;
           font-weight: bold;
         }
-
         .links {
           margin-top: 1.5rem;
           text-align: center;
           font-size: 0.95rem;
         }
-
         .links a {
           color: #1976d2;
           text-decoration: none;
         }
-
         .links a:hover {
           text-decoration: underline;
         }
-
         @media (max-width: 480px) {
           .form-card {
             padding: 1.5rem;
           }
-
           h1 {
             font-size: 1.5rem;
           }
