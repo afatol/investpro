@@ -19,24 +19,22 @@ const formatBRL = (value) =>
 
 export default function RendimentosPage() {
   const [rendimentos, setRendimentos] = useState([])              // lista bruta de lançamentos
-  const [filtered, setFiltered] = useState([])                    // apenas os 5 dias filtrados
+  const [origemProfilesMap, setOrigemProfilesMap] = useState({})  // mapeia UUID => { name, email }
   const [chartData, setChartData] = useState([])                  // dados formatados para o gráfico
   const [dateFilter, setDateFilter] = useState('')                // YYYY-MM-DD do dia selecionado (default: hoje)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // 1) Ao montar componente, inicializa dateFilter para hoje (YYYY-MM-DD)
+  // 1) Inicializa dateFilter para hoje (YYYY-MM-DD)
   useEffect(() => {
     const hoje = new Date()
     const yyyy = hoje.getFullYear().toString()
     const mm = String(hoje.getMonth() + 1).padStart(2, '0')
     const dd = String(hoje.getDate()).padStart(2, '0')
-    const hojeStr = `${yyyy}-${mm}-${dd}`
-    setDateFilter(hojeStr)
+    setDateFilter(`${yyyy}-${mm}-${dd}`)
   }, [])
 
-  // 2) Sempre que dateFilter muda, traz do Supabase todos os rendimentos_aplicados
-  //    cujo campo `data::date` esteja entre (dateFilter - 4 dias) e dateFilter.
+  // 2) Sempre que dateFilter muda, busca lançamentos nesse intervalo de 5 dias
   useEffect(() => {
     if (!dateFilter) return
 
@@ -49,28 +47,24 @@ export default function RendimentosPage() {
       const inicio = new Date(base)
       inicio.setDate(base.getDate() - 4)
 
-      // formata para ISO (YYYY-MM-DD) para usar no filtro .gte / .lte
       const yyyyI = inicio.getFullYear().toString()
       const mmI = String(inicio.getMonth() + 1).padStart(2, '0')
       const ddI = String(inicio.getDate()).padStart(2, '0')
       const startDate = `${yyyyI}-${mmI}-${ddI}`
 
-      const endDate = dateFilter // YYYY-MM-DD
+      const endDate = dateFilter
 
       try {
-        // Supabase: busca id, user_id, valor, origem, data para o usuário atual
         const {
-          data: sessionData,
+          data: { session },
           error: sessionError
         } = await supabase.auth.getSession()
-
-        if (sessionError || !sessionData.session) {
+        if (sessionError || !session) {
           window.location.href = '/login'
           return
         }
-        const userId = sessionData.session.user.id
+        const userId = session.user.id
 
-        // Query: filtrar por data >= startDate e <= endDate
         const { data, error: fetchErr } = await supabase
           .from('rendimentos_aplicados')
           .select('id, user_id, valor, origem, data')
@@ -93,11 +87,55 @@ export default function RendimentosPage() {
     fetchData()
   }, [dateFilter])
 
-  // 3) Quando `rendimentos` for atualizado, monta `chartData` e `filtered`:
+  // 3) Sempre que rendimentos é atualizado, busca perfis de “origem” que não sejam 'daily'
+  useEffect(() => {
+    const fetchOrigemProfiles = async () => {
+      // coleta todos os valores de r.origem que não sejam 'daily'
+      const origemIds = Array.from(
+        new Set(
+          rendimentos
+            .map((r) => (r.origem !== 'daily' ? r.origem : null))
+            .filter((o) => o !== null)
+        )
+      )
+
+      if (origemIds.length === 0) {
+        setOrigemProfilesMap({})
+        return
+      }
+
+      try {
+        const { data: perfis, error: perfErr } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', origemIds)
+
+        if (perfErr) throw perfErr
+
+        // monta o map uuid => { name, email }
+        const mapa = {}
+        perfis.forEach((p) => {
+          mapa[p.id] = { name: p.name, email: p.email }
+        })
+        setOrigemProfilesMap(mapa)
+      } catch (err) {
+        console.error('Erro ao buscar perfis de origem:', err)
+        setOrigemProfilesMap({})
+      }
+    }
+
+    if (rendimentos.length > 0) {
+      fetchOrigemProfiles()
+    } else {
+      setOrigemProfilesMap({})
+    }
+  }, [rendimentos])
+
+  // 4) Quando rendimentos muda, monta chartData
   useEffect(() => {
     if (!dateFilter) return
 
-    // Reconstrói array de 5 dias (hoje e 4 dias anteriores)
+    // monta array de 5 dias (hoje e 4 dias anteriores)
     const base = new Date(dateFilter)
     const diasArray = []
     for (let i = 4; i >= 0; i--) {
@@ -109,15 +147,14 @@ export default function RendimentosPage() {
         year: 'numeric'
       }) // “DD/MM/YYYY”
       diasArray.push({
-        key: label,           // usado internamente
-        dateObj: d,           // objeto Date original
-        name: label,          // texto para eixo X
-        daily: 0,             // total de “daily”
-        indicacao: 0          // total de “origem ≠ 'daily'”
+        key: label,
+        dateObj: d,
+        name: label,
+        daily: 0,
+        indicacao: 0
       })
     }
 
-    // Agrupa lançamentos em seus dias
     rendimentos.forEach((r) => {
       const d = new Date(r.data)
       const diaLabel = d.toLocaleDateString('pt-BR', {
@@ -125,8 +162,6 @@ export default function RendimentosPage() {
         month: '2-digit',
         year: 'numeric'
       })
-
-      // encontra índice no array
       const idx = diasArray.findIndex((item) => item.name === diaLabel)
       if (idx !== -1) {
         const valorNum = parseFloat(r.valor || 0)
@@ -138,18 +173,14 @@ export default function RendimentosPage() {
       }
     })
 
-    // `chartData` precisa ser array de objetos puros { name, daily, indicacao }
     const cd = diasArray.map((item) => ({
       name: item.name,
       daily: Number(item.daily.toFixed(2)),
       indicacao: Number(item.indicacao.toFixed(2))
     }))
-
     setChartData(cd)
-    setFiltered(rendimentos) // histórica completa (já filtrada por data)  
   }, [rendimentos, dateFilter])
 
-  // 4) Renderização
   return (
     <Layout>
       <div className="rendimentos-page">
@@ -160,43 +191,40 @@ export default function RendimentosPage() {
 
         {!loading && !error && (
           <>
-            {/* ----------------------
-                4.1) Filtro por data
-            ---------------------- */}
+            {/* ====================================
+                5. Filtro por data (últimos 5 dias)
+            ==================================== */}
             <div className="filtro-data">
               <label htmlFor="dataFilter">Selecionar Dia:</label>
               <input
                 id="dataFilter"
                 type="date"
                 value={dateFilter}
-                max={dateFilter}  // não permite futuro
+                max={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
               />
               <small style={{ marginLeft: '0.5rem', color: '#555' }}>
-                (serão exibidos os últimos 5 dias a partir dessa data)
+                (serão exibidos lançamentos dos últimos 5 dias a partir desta data)
               </small>
             </div>
 
-            {/* ---------------------------------------
-                4.2) Saldo acumulado até o final do período
-            --------------------------------------- */}
+            {/* ===========================
+                6. Saldo Acumulado
+            =========================== */}
             <div className="saldo-atual">
               <h2>
-                Saldo Acumulado: {' '}
+                Saldo Acumulado:{' '}
                 <span>
                   {formatBRL(
-                    chartData.reduce(
-                      (acc, dia) => acc + dia.daily + dia.indicacao,
-                      0
-                    )
+                    chartData.reduce((acc, dia) => acc + dia.daily + dia.indicacao, 0)
                   )}
                 </span>
               </h2>
             </div>
 
-            {/* ----------------------
-                4.3) Gráfico dos últimos 5 dias
-            ---------------------- */}
+            {/* ===========================
+                7. Gráfico (últimos 5 dias)
+            =========================== */}
             <div className="grafico">
               <h2>Gráfico dos Últimos 5 Dias</h2>
               {chartData.length > 0 ? (
@@ -215,16 +243,8 @@ export default function RendimentosPage() {
                     <YAxis tickFormatter={(v) => formatBRL(v)} tick={{ fontSize: 12 }} />
                     <Tooltip formatter={(value) => formatBRL(value)} />
                     <Legend />
-                    <Bar
-                      dataKey="daily"
-                      name="Rendimento Diário"
-                      fill="#4CAF50"
-                    />
-                    <Bar
-                      dataKey="indicacao"
-                      name="Indicação"
-                      fill="#2196F3"
-                    />
+                    <Bar dataKey="daily" name="Rendimento Diário" fill="#4CAF50" />
+                    <Bar dataKey="indicacao" name="Indicação" fill="#2196F3" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -232,12 +252,12 @@ export default function RendimentosPage() {
               )}
             </div>
 
-            {/* ----------------------
-                4.4) Histórico detalhado (lista de lançamentos)
-            ---------------------- */}
+            {/* =================================
+                8. Histórico Detalhado dos Lançamentos
+            ================================= */}
             <div className="historico">
               <h2>Histórico Detalhado</h2>
-              {filtered.length > 0 ? (
+              {rendimentos.length > 0 ? (
                 <table>
                   <thead>
                     <tr>
@@ -247,26 +267,33 @@ export default function RendimentosPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((r) => (
-                      <tr key={r.id}>
-                        <td>
-                          {new Date(r.data).toLocaleString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit'
-                          })}
-                        </td>
-                        <td>
-                          {r.origem === 'daily'
-                            ? 'Rendimento Diário'
-                            : `Indicação (${r.origem})`}
-                        </td>
-                        <td>{formatBRL(r.valor)}</td>
-                      </tr>
-                    ))}
+                    {rendimentos.map((r) => {
+                      const dtStr = new Date(r.data).toLocaleString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })
+                      let origemTexto = 'Rendimento Diário'
+                      if (r.origem !== 'daily') {
+                        const perfil = origemProfilesMap[r.origem]
+                        if (perfil) {
+                          origemTexto = `Indicação (${perfil.name || perfil.email})`
+                        } else {
+                          origemTexto = `Indicação (ID: ${r.origem})`
+                        }
+                      }
+
+                      return (
+                        <tr key={r.id}>
+                          <td>{dtStr}</td>
+                          <td>{origemTexto}</td>
+                          <td>{formatBRL(r.valor)}</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               ) : (
@@ -279,7 +306,7 @@ export default function RendimentosPage() {
         )}
 
         {/* =========================
-            Estilos em JSX
+            9. Estilos CSS
         ========================= */}
         <style jsx>{`
           .rendimentos-page {
