@@ -8,32 +8,37 @@ import { supabase } from '../../../lib/supabaseClient'
 export default function AdminPlansNewPage() {
   const router = useRouter()
   const [name, setName] = useState('')
-  const [taxa, setTaxa] = useState('')
+  const [taxa, setTaxa] = useState('')     // valor de taxa_rendimento
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
     if (!name.trim()) {
       setError('Informe o nome do plano.')
       return
     }
-    // Validar taxa: se não preenchida, assume 0
-    const valorTaxa = parseFloat(taxa)
-    if (taxa.trim() !== '' && (isNaN(valorTaxa) || valorTaxa < 0)) {
-      setError('Insira uma taxa válida (número ≥ 0).')
-      return
+
+    // **Permitir 0 e negativos**: se usuário deixou em branco, considera "0"; senão converte
+    const parsedTaxa = parseFloat(taxa)
+    let taxaFinal = 0
+    if (taxa.trim() !== '') {
+      if (isNaN(parsedTaxa)) {
+        setError('Insira uma taxa válida (número).')
+        return
+      }
+      taxaFinal = parsedTaxa
     }
 
     setLoading(true)
-
     const { error: insertErr } = await supabase
       .from('plans')
       .insert([
         {
           name: name.trim(),
-          taxa_rendimento: isNaN(valorTaxa) ? 0 : valorTaxa,
+          taxa_rendimento: taxaFinal,
         },
       ])
 
@@ -49,9 +54,14 @@ export default function AdminPlansNewPage() {
   return (
     <AdminLayout>
       <div style={{ maxWidth: '500px', margin: 'auto', padding: '2rem 1rem' }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Criar Novo Plano</h1>
+        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          Criar Novo Plano
+        </h1>
+
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <label htmlFor="name" style={{ fontWeight: 600 }}>Nome do Plano:</label>
+          <label htmlFor="name" style={{ fontWeight: 600 }}>
+            Nome do Plano:
+          </label>
           <input
             id="name"
             type="text"
@@ -66,14 +76,16 @@ export default function AdminPlansNewPage() {
             }}
           />
 
-          <label htmlFor="taxa" style={{ fontWeight: 600 }}>Taxa de Rendimento (% ao dia):</label>
+          <label htmlFor="taxa" style={{ fontWeight: 600 }}>
+            Taxa de Rendimento (% ao dia):
+          </label>
           <input
             id="taxa"
             type="number"
             step="0.01"
             value={taxa}
             onChange={(e) => setTaxa(e.target.value)}
-            placeholder="Ex: 0.10 para 0,1%"
+            placeholder="Ex: 0.10 para 0,1% (pode ser negativo)"
             style={{
               padding: '0.5rem',
               border: '1px solid #ccc',
@@ -83,7 +95,7 @@ export default function AdminPlansNewPage() {
           />
 
           {error && (
-            <p style={{ color: '#c00', textAlign: 'center', marginBottom: '1rem', fontWeight: 'bold' }}>
+            <p style={{ color: '#c00', textAlign: 'center', fontWeight: 'bold' }}>
               {error}
             </p>
           )}
