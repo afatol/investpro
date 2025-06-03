@@ -9,25 +9,20 @@ export default function AdminPlansEditPage() {
   const router = useRouter()
   const { id } = router.query
 
-  // -------------- Estados --------------
-  const [name, setName] = useState('')             // nome do plano
-  const [dailyRate, setDailyRate] = useState('')   // daily_rate (string para facilitar o binding)
-  const [loading, setLoading] = useState(true)     // enquanto busca os dados
-  const [saving, setSaving] = useState(false)      // enquanto salva as alterações
-  const [error, setError] = useState('')           // mensagem de erro, se houver
+  const [name, setName] = useState('')
+  const [taxa, setTaxa] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
-  // -------------- Busca o plano ao carregar --------------
   useEffect(() => {
     if (!id) return
-
-    async function fetchPlan() {
+    const fetchPlan = async () => {
       setError('')
-      setLoading(true)
       try {
-        // Seleciona name e daily_rate (não mais taxa_rendimento)
         const { data, error: fetchErr } = await supabase
           .from('plans')
-          .select('name, daily_rate')
+          .select('name, taxa_rendimento')
           .eq('id', id)
           .maybeSingle()
 
@@ -37,14 +32,8 @@ export default function AdminPlansEditPage() {
           setLoading(false)
           return
         }
-
         setName(data.name || '')
-        // Converte numeric → string para preencher o input
-        setDailyRate(
-          data.daily_rate != null
-            ? data.daily_rate.toString()
-            : ''
-        )
+        setTaxa(String(data.taxa_rendimento ?? '0'))
       } catch (err) {
         console.error(err)
         setError('Falha ao carregar o plano.')
@@ -52,49 +41,47 @@ export default function AdminPlansEditPage() {
         setLoading(false)
       }
     }
-
     fetchPlan()
   }, [id])
 
-  // -------------- Salva alterações --------------
   const handleSave = async (e) => {
     e.preventDefault()
     setError('')
 
-    // Validações mínimas
     if (!name.trim()) {
-      setError('O nome do plano não pode ficar em branco.')
+      setError('O nome não pode ficar em branco.')
       return
     }
 
-    const rateNum = parseFloat(dailyRate)
-    if (isNaN(rateNum)) {
-      setError('Informe um valor válido para “Daily Rate” (ex: 1.25).')
-      return
+    // **Permitir zero e negativo**:
+    const parsedTaxa = parseFloat(taxa)
+    let taxaFinal = 0
+    if (taxa.trim() !== '') {
+      if (isNaN(parsedTaxa)) {
+        setError('Insira uma taxa válida (número).')
+        return
+      }
+      taxaFinal = parsedTaxa
     }
 
     setSaving(true)
-    try {
-      // Atualiza name e daily_rate (não usa mais taxa_rendimento)
-      const { error: updateErr } = await supabase
-        .from('plans')
-        .update({
-          name: name.trim(),
-          daily_rate: rateNum,
-        })
-        .eq('id', id)
+    const { error: updateErr } = await supabase
+      .from('plans')
+      .update({
+        name: name.trim(),
+        taxa_rendimento: taxaFinal,
+      })
+      .eq('id', id)
 
-      if (updateErr) throw updateErr
-      // Redireciona de volta para a lista
-      router.push('/admin/plans')
-    } catch (err) {
-      console.error(err)
+    if (updateErr) {
+      console.error(updateErr)
       setError('Não foi possível atualizar o plano.')
       setSaving(false)
+    } else {
+      router.push('/admin/plans')
     }
   }
 
-  // -------------- Renderização condicional --------------
   if (loading) {
     return (
       <AdminLayout>
@@ -108,33 +95,14 @@ export default function AdminPlansEditPage() {
   return (
     <AdminLayout>
       <div style={{ maxWidth: '500px', margin: 'auto', padding: '2rem 1rem' }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          Editar Plano
-        </h1>
-
+        <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Editar Plano</h1>
         {error && (
-          <p
-            style={{
-              color: '#c00',
-              textAlign: 'center',
-              marginBottom: '1rem',
-            }}
-          >
+          <p style={{ color: '#c00', textAlign: 'center', fontWeight: 'bold' }}>
             {error}
           </p>
         )}
-
-        <form
-          onSubmit={handleSave}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-          }}
-        >
-          <label htmlFor="name" style={{ fontWeight: 600 }}>
-            Nome do Plano:
-          </label>
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <label htmlFor="name" style={{ fontWeight: 600 }}>Nome do Plano:</label>
           <input
             id="name"
             type="text"
@@ -149,16 +117,16 @@ export default function AdminPlansEditPage() {
             }}
           />
 
-          <label htmlFor="dailyRate" style={{ fontWeight: 600 }}>
-            Daily Rate (%):
+          <label htmlFor="taxa" style={{ fontWeight: 600 }}>
+            Taxa de Rendimento (% ao dia):
           </label>
           <input
-            id="dailyRate"
+            id="taxa"
             type="number"
             step="0.01"
-            value={dailyRate}
-            onChange={(e) => setDailyRate(e.target.value)}
-            required
+            value={taxa}
+            onChange={(e) => setTaxa(e.target.value)}
+            placeholder="Ex: 0.10 para 0,1% (pode ser negativo)"
             style={{
               padding: '0.5rem',
               border: '1px solid #ccc',
