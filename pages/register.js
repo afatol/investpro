@@ -30,12 +30,13 @@ export default function Register() {
 
     const { name, email, password, confirmPassword, phone_number, referral_code } = formData
 
-    // 1) Validações básicas
+    // 1) Validação de senhas
     if (password !== confirmPassword) {
       setError('As senhas não coincidem')
       setLoading(false)
       return
     }
+    // 2) referral_code não pode ficar vazio
     if (!referral_code.trim()) {
       setError('O código de indicação é obrigatório')
       setLoading(false)
@@ -43,7 +44,7 @@ export default function Register() {
     }
 
     try {
-      // 2) Busca perfil do indicado (quem forneceu o "referral_code")
+      // 3) Busca quem indicou (pela coluna referral_code)
       const { data: refererProfile, error: refererError } = await supabase
         .from('profiles')
         .select('id')
@@ -56,49 +57,47 @@ export default function Register() {
       }
       const referrerId = refererProfile.id
 
-      // 3) Cria o usuário no Auth
+      // 4) Cria o usuário no Auth
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
+            // Podemos enviar name e phone_number aqui,
+            // mas de qualquer forma depois faremos UPDATE na linha de profiles.
             name,
-            phone_number,
-            // Você pode guardar o referral_code também em raw_user_metadata, mas
-            // o que interessa para nós é o referrer_id de verdade.
-            referral_code
+            phone_number
           }
         }
       })
       if (signUpError) throw signUpError
 
+      // O Supabase já criou a linha em "profiles" com id = signUpData.user.id
       const newUserId = signUpData.user.id
 
-      // 4) Insere na tabela "profiles" o novo perfil, apontando referrer_id
-      const { error: insertProfileError } = await supabase
+      // 5) Atualiza essa linha de "profiles" para setar referrer_id, caso queira sobrepor campos:
+      const { error: updateProfileError } = await supabase
         .from('profiles')
-        .insert([
-          {
-            id: newUserId,
-            name: name.trim(),
-            email: email.trim(),
-            phone_number: phone_number.trim(),
-            // Podemos armazenar também o referral_code do novo usuário (se for relevante):
-            referral_code: null, 
-            // Ou deixar que o trigger generate_referral_code() preencha automaticamente:
-            referrer_id: referrerId
-          }
-        ])
-      if (insertProfileError) throw insertProfileError
+        .update({
+          // Se tiver trigger gerando referral_code, não passar referral_code aqui.
+          referrer_id: referrerId,
+          name: name.trim(),
+          phone_number: phone_number.trim()
+        })
+        .eq('id', newUserId)
 
-      // 5) Redireciona para login (ou outra página)
+      if (updateProfileError) throw updateProfileError
+
+      // 6) Redireciona para login
       router.push('/login')
     } catch (err) {
       console.error('Erro no cadastro:', err)
       setError(err.message || 'Não foi possível cadastrar.')
-    } finally {
       setLoading(false)
+      return
     }
+
+    setLoading(false)
   }
 
   return (
