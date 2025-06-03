@@ -8,7 +8,7 @@ import { supabase } from '../../../lib/supabaseClient'
 export default function AdminPlansNewPage() {
   const router = useRouter()
   const [name, setName] = useState('')
-  const [taxa, setTaxa] = useState('')     // valor de taxa_rendimento
+  const [taxa, setTaxa] = useState('')     // valor de daily_rate
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -38,7 +38,7 @@ export default function AdminPlansNewPage() {
       .insert([
         {
           name: name.trim(),
-          taxa_rendimento: taxaFinal,
+          daily_rate: taxaFinal,
         },
       ])
 
