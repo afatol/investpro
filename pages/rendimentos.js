@@ -18,14 +18,14 @@ const formatBRL = (value) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
 export default function RendimentosPage() {
-  const [rendimentos, setRendimentos] = useState([])              // lista bruta de lançamentos
-  const [origemProfilesMap, setOrigemProfilesMap] = useState({})  // mapeia UUID => { name, email }
-  const [chartData, setChartData] = useState([])                  // dados formatados para o gráfico
-  const [dateFilter, setDateFilter] = useState('')                // YYYY-MM-DD do dia selecionado (default: hoje)
+  const [rendimentos, setRendimentos] = useState([])              // lançamentos brutos
+  const [origemProfilesMap, setOrigemProfilesMap] = useState({})  // map UUID => { name, email }
+  const [chartData, setChartData] = useState([])                  // últimos 5 dias para gráfico
+  const [dateFilter, setDateFilter] = useState('')                // YYYY-MM-DD selecionado (inicial: hoje)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // 1) Inicializa dateFilter para hoje (YYYY-MM-DD)
+  // 1) Inicializa dateFilter com a data de hoje (YYYY-MM-DD)
   useEffect(() => {
     const hoje = new Date()
     const yyyy = hoje.getFullYear().toString()
@@ -34,7 +34,7 @@ export default function RendimentosPage() {
     setDateFilter(`${yyyy}-${mm}-${dd}`)
   }, [])
 
-  // 2) Sempre que dateFilter muda, busca lançamentos nesse intervalo de 5 dias
+  // 2) Toda vez que dateFilter muda, busca rendimentos no intervalo [dateFilter - 4 dias, dateFilter]
   useEffect(() => {
     if (!dateFilter) return
 
@@ -42,7 +42,7 @@ export default function RendimentosPage() {
       setError(null)
       setLoading(true)
 
-      // calcula início do período: dateFilter - 4 dias
+      // calcula início do período (dateFilter - 4 dias)
       const base = new Date(dateFilter)
       const inicio = new Date(base)
       inicio.setDate(base.getDate() - 4)
@@ -74,7 +74,6 @@ export default function RendimentosPage() {
           .order('data', { ascending: true })
 
         if (fetchErr) throw fetchErr
-
         setRendimentos(data || [])
       } catch (err) {
         console.error('Erro ao buscar rendimentos:', err)
@@ -87,14 +86,18 @@ export default function RendimentosPage() {
     fetchData()
   }, [dateFilter])
 
-  // 3) Sempre que rendimentos é atualizado, busca perfis de “origem” que não sejam 'daily'
+  // 3) Quando rendimentos muda, busca perfis apenas dos “origens” que são UUIDs (não “daily” nem “com_nivelX”)
   useEffect(() => {
     const fetchOrigemProfiles = async () => {
-      // coleta todos os valores de r.origem que não sejam 'daily'
+      // extrai todos os valores de origem que não sejam 'daily', 'com_nivel1' ou 'com_nivel2'
       const origemIds = Array.from(
         new Set(
           rendimentos
-            .map((r) => (r.origem !== 'daily' ? r.origem : null))
+            .map((r) => {
+              if (r.origem !== 'daily' && r.origem !== 'com_nivel1' && r.origem !== 'com_nivel2')
+                return r.origem
+              return null
+            })
             .filter((o) => o !== null)
         )
       )
@@ -112,7 +115,6 @@ export default function RendimentosPage() {
 
         if (perfErr) throw perfErr
 
-        // monta o map uuid => { name, email }
         const mapa = {}
         perfis.forEach((p) => {
           mapa[p.id] = { name: p.name, email: p.email }
@@ -131,11 +133,11 @@ export default function RendimentosPage() {
     }
   }, [rendimentos])
 
-  // 4) Quando rendimentos muda, monta chartData
+  // 4) Quando rendimentos muda, monta dados para o gráfico dos últimos 5 dias
   useEffect(() => {
     if (!dateFilter) return
 
-    // monta array de 5 dias (hoje e 4 dias anteriores)
+    // preenche array dos 5 dias: [dateFilter-4d, …, dateFilter]
     const base = new Date(dateFilter)
     const diasArray = []
     for (let i = 4; i >= 0; i--) {
@@ -145,14 +147,8 @@ export default function RendimentosPage() {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
-      }) // “DD/MM/YYYY”
-      diasArray.push({
-        key: label,
-        dateObj: d,
-        name: label,
-        daily: 0,
-        indicacao: 0
       })
+      diasArray.push({ name: label, dateObj: d, daily: 0, indicacao: 0 })
     }
 
     rendimentos.forEach((r) => {
@@ -191,9 +187,9 @@ export default function RendimentosPage() {
 
         {!loading && !error && (
           <>
-            {/* ====================================
-                5. Filtro por data (últimos 5 dias)
-            ==================================== */}
+            {/* ===============================
+                Filtro de Data (últimos 5 dias)
+            =============================== */}
             <div className="filtro-data">
               <label htmlFor="dataFilter">Selecionar Dia:</label>
               <input
@@ -204,13 +200,13 @@ export default function RendimentosPage() {
                 onChange={(e) => setDateFilter(e.target.value)}
               />
               <small style={{ marginLeft: '0.5rem', color: '#555' }}>
-                (serão exibidos lançamentos dos últimos 5 dias a partir desta data)
+                (mostrando lançamentos dos últimos 5 dias)
               </small>
             </div>
 
-            {/* ===========================
-                6. Saldo Acumulado
-            =========================== */}
+            {/* ========================
+                Saldo Acumulado
+            ======================== */}
             <div className="saldo-atual">
               <h2>
                 Saldo Acumulado:{' '}
@@ -222,9 +218,9 @@ export default function RendimentosPage() {
               </h2>
             </div>
 
-            {/* ===========================
-                7. Gráfico (últimos 5 dias)
-            =========================== */}
+            {/* ========================
+                Gráfico (5 Dias)
+            ======================== */}
             <div className="grafico">
               <h2>Gráfico dos Últimos 5 Dias</h2>
               {chartData.length > 0 ? (
@@ -252,37 +248,38 @@ export default function RendimentosPage() {
               )}
             </div>
 
-            {/* =================================
-                8. Histórico Detalhado dos Lançamentos
-            ================================= */}
+            {/* ====================================
+                Histórico Detalhado (com Nome/Email)
+            ==================================== */}
             <div className="historico">
               <h2>Histórico Detalhado</h2>
               {rendimentos.length > 0 ? (
                 <table>
                   <thead>
                     <tr>
-                      <th>Data</th>
+                      <th>Data e Hora</th>
                       <th>Origem</th>
                       <th>Valor</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rendimentos.map((r) => {
-                      const dtStr = new Date(r.data).toLocaleString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                      })
+                      // 1) Formata data/hora no timezone local
+                      const dtStr = new Date(r.data).toLocaleString('pt-BR')
+
+                      // 2) Define texto de origem
                       let origemTexto = 'Rendimento Diário'
-                      if (r.origem !== 'daily') {
+                      if (r.origem === 'com_nivel1') {
+                        origemTexto = 'Comissão Nível 1'
+                      } else if (r.origem === 'com_nivel2') {
+                        origemTexto = 'Comissão Nível 2'
+                      } else if (r.origem !== 'daily') {
+                        // supomos que seja UUID do perfil indicante
                         const perfil = origemProfilesMap[r.origem]
                         if (perfil) {
                           origemTexto = `Indicação (${perfil.name || perfil.email})`
                         } else {
-                          origemTexto = `Indicação (ID: ${r.origem})`
+                          origemTexto = `Indicação (ID desconhecido)`
                         }
                       }
 
@@ -305,9 +302,6 @@ export default function RendimentosPage() {
           </>
         )}
 
-        {/* =========================
-            9. Estilos CSS
-        ========================= */}
         <style jsx>{`
           .rendimentos-page {
             max-width: 900px;
