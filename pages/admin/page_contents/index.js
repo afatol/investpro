@@ -43,6 +43,7 @@ export default function AdminPageContentsList() {
     <AdminLayout>
       <div style={{ maxWidth: '800px', margin: 'auto', padding: '2rem 1rem' }}>
         <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Páginas Estáticas</h1>
+
         {error && (
           <p
             style={{
@@ -55,21 +56,7 @@ export default function AdminPageContentsList() {
             {error}
           </p>
         )}
-        <div style={{ marginBottom: '1rem', textAlign: 'right' }}>
-          <Link href="/admin/page_contents/new">
-            <a
-              style={{
-                background: '#0070f3',
-                color: '#fff',
-                padding: '0.5rem 1rem',
-                borderRadius: '6px',
-                textDecoration: 'none',
-              }}
-            >
-              + Nova Página
-            </a>
-          </Link>
-        </div>
+
         {pages.length === 0 ? (
           <p style={{ textAlign: 'center' }}>Nenhuma página cadastrada.</p>
         ) : (
