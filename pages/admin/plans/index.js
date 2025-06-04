@@ -112,6 +112,35 @@ export default function AdminPlansPage() {
     }
   }
 
+  // 4) Exclui um plano após confirmação
+  const handleDeletePlan = async (planId, planName) => {
+    const confirmacao = window.confirm(
+      `Tem certeza de que deseja remover o plano "${planName}"? Esta ação não pode ser desfeita.`
+    )
+    if (!confirmacao) return
+
+    try {
+      // Se existirem perfis que referenciam este plan, considere limpar plan_id primeiro:
+      // await supabase.from('profiles').update({ plan_id: null }).eq('plan_id', planId);
+
+      const { error: deleteErr } = await supabase
+        .from('plans')
+        .delete()
+        .eq('id', planId)
+
+      if (deleteErr) {
+        console.error('Erro ao excluir plano:', deleteErr)
+        alert('Não foi possível remover o plano. Verifique se não há usuários vinculados.')
+      } else {
+        alert(`Plano "${planName}" removido com sucesso!`)
+        fetchPlans()
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Ocorreu um erro ao tentar remover o plano.')
+    }
+  }
+
   return (
     <AdminLayout>
       <div style={{ maxWidth: '700px', margin: 'auto', padding: '2rem 1rem' }}>
@@ -263,6 +292,15 @@ export default function AdminPlansPage() {
                     <Link href={`/admin/plans/${p.id}`}>
                       <a style={btnEditStyle}>Editar</a>
                     </Link>
+                    <button
+                      onClick={() => handleDeletePlan(p.id, p.name)}
+                      style={{
+                        ...btnRemoveStyle,
+                        marginLeft: '0.5rem',
+                      }}
+                    >
+                      Remover
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -303,4 +341,17 @@ const btnEditStyle = {
   borderRadius: '4px',
   textDecoration: 'none',
   fontSize: '0.9rem',
+  cursor: 'pointer',
+  border: 'none',
 }
+
+const btnRemoveStyle = {
+  display: 'inline-block',
+  padding: '0.25rem 0.5rem',
+  background: '#e53935',
+  color: '#fff',
+  borderRadius: '4px',
+  fontSize: '0.9rem',
+  cursor: 'pointer',
+  border: 'none',
+} 
